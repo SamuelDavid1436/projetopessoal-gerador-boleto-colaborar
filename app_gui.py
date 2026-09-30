@@ -84,6 +84,8 @@ class App(ctk.CTk):
         self._montar_layout()
         self._agendar_tick()
         self.after(300, self._checar_recuperacao_pendente)
+        self._log(f"Pasta de dados (resultados, backup e logs): {config.PASTA_DOCUMENTOS}")
+        self._log(f"Pasta dos perfis do Chrome (logins): {config.PASTA_PERFIS}")
 
     # ------------------------------------------------------------------
     # Recuperação de execução interrompida (queda/travamento)

@@ -33,6 +33,31 @@ TEMPO_ESPERA_ACESSO_COLABORA = 900
 import os
 
 
+def _pasta_do_programa() -> str:
+    """Pasta ONDE O PROGRAMA ESTÁ INSTALADO (ao lado do .exe). Nunca usar
+    dirname(__file__) num .exe: lá dentro __file__ aponta pra pasta temporária
+    de extração do PyInstaller (_MEIxxxx), que é APAGADA quando o programa
+    fecha — tudo que fosse gravado nela (resultados, backup, login) sumiria."""
+    import sys
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def _pasta_gravavel(caminho: str) -> bool:
+    """True se dá pra criar a pasta E gravar um arquivo nela (makedirs sozinho
+    não basta: proteções do Windows podem deixar criar a pasta e bloquear a escrita)."""
+    try:
+        os.makedirs(caminho, exist_ok=True)
+        teste = os.path.join(caminho, ".teste_escrita")
+        with open(teste, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(teste)
+        return True
+    except OSError:
+        return False
+
+
 def _descobrir_pasta_documentos() -> str:
     """
     Tenta usar a pasta Documentos do usuário. Em algumas máquinas (comum com
@@ -41,15 +66,14 @@ def _descobrir_pasta_documentos() -> str:
     "CapturaBoletoColabora_Dados" ao lado do próprio programa, que sempre
     funciona.
     """
-    candidata = os.path.join(os.path.expanduser("~"), "Documents", "CapturaBoletoColabora")
-    try:
-        os.makedirs(candidata, exist_ok=True)
-        return candidata
-    except OSError:
-        pasta_do_programa = os.path.dirname(os.path.abspath(__file__))
-        alternativa = os.path.join(pasta_do_programa, "CapturaBoletoColabora_Dados")
-        os.makedirs(alternativa, exist_ok=True)
-        return alternativa
+    candidatas = [os.path.join(os.path.expanduser("~"), "Documents", "CapturaBoletoColabora")]
+    if os.environ.get("LOCALAPPDATA"):
+        candidatas.append(os.path.join(os.environ["LOCALAPPDATA"], "CapturaBoletoColabora", "Dados"))
+    candidatas.append(os.path.join(_pasta_do_programa(), "CapturaBoletoColabora_Dados"))
+    for candidata in candidatas:
+        if _pasta_gravavel(candidata):
+            return candidata
+    return candidatas[-1]
 
 
 def _descobrir_pasta_local_app() -> str:
@@ -64,16 +88,15 @@ def _descobrir_pasta_local_app() -> str:
     corrompido). %LOCALAPPDATA% nunca é sincronizado por padrão — é
     literalmente pra esse tipo de dado que ele existe.
     """
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    candidata = os.path.join(base, "CapturaBoletoColabora")
-    try:
-        os.makedirs(candidata, exist_ok=True)
-        return candidata
-    except OSError:
-        pasta_do_programa = os.path.dirname(os.path.abspath(__file__))
-        alternativa = os.path.join(pasta_do_programa, "CapturaBoletoColabora_Perfis")
-        os.makedirs(alternativa, exist_ok=True)
-        return alternativa
+    candidatas = []
+    if os.environ.get("LOCALAPPDATA"):
+        candidatas.append(os.path.join(os.environ["LOCALAPPDATA"], "CapturaBoletoColabora"))
+    candidatas.append(os.path.join(os.path.expanduser("~"), "CapturaBoletoColabora"))
+    candidatas.append(os.path.join(_pasta_do_programa(), "CapturaBoletoColabora_Perfis"))
+    for candidata in candidatas:
+        if _pasta_gravavel(candidata):
+            return candidata
+    return candidatas[-1]
 
 
 PASTA_DOCUMENTOS = _descobrir_pasta_documentos()
