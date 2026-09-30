@@ -12,6 +12,7 @@ from datetime import datetime
 import pandas as pd
 
 import config
+import validacao
 
 
 NOME_BACKUP_PARCIAL = "backup_parcial.csv"
@@ -159,15 +160,30 @@ def ler_telefones_base(caminho_arquivo: str) -> dict:
     return telefones
 
 
+def nome_final(registro: dict) -> str:
+    """Nome do responsável (tela Alterar Dados); se vier vazio ou "." (sem
+    responsável), usa o nome do aluno. Nunca devolve ponto."""
+    for chave in ("Nome Responsavel", "Nome"):
+        if validacao.nome_valido(registro.get(chave)):
+            return str(registro[chave]).strip()
+    return ""
+
+
+def cpf_final(registro: dict) -> str:
+    """CPF do responsável; se vier vazio/00000000009, usa o CPF do aluno."""
+    for chave in ("CPF Responsavel", "CPF"):
+        if validacao.cpf_valido(registro.get(chave)):
+            return str(registro[chave]).strip()
+    return ""
+
+
 def _linha_resultado(registro: dict) -> dict:
     """Linha do resultado/backup: Nome e CPF vêm da tela "Alterar Dados"
     (responsável) quando existirem; se a consulta falhou e a tela não foi
     lida, mantém o Nome/CPF da lista pra não perder a identificação do RA."""
     linha = {c: registro.get(c, "") for c in config.COLUNAS_ARQUIVO_RESULTADO}
-    if str(registro.get("Nome Responsavel", "")).strip():
-        linha["Nome"] = registro["Nome Responsavel"]
-    if str(registro.get("CPF Responsavel", "")).strip():
-        linha["CPF"] = registro["CPF Responsavel"]
+    linha["Nome"] = nome_final(registro) or registro.get("Nome", "")
+    linha["CPF"] = cpf_final(registro) or registro.get("CPF", "")
     return linha
 
 
@@ -278,8 +294,8 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
     for registro in resultados:
         linha = {coluna: registro.get(coluna, "") for coluna in _COLUNAS_FIXAS_INICIO}
         # Nome e CPF: só os da tela "Alterar Dados" (sem colunas duplicadas)
-        linha["Nome"] = registro.get("Nome Responsavel", "")
-        linha["CPF"] = registro.get("CPF Responsavel", "")
+        linha["Nome"] = nome_final(registro)
+        linha["CPF"] = cpf_final(registro)
         parcelas = registro.get("_parcelas_relatorio", []) or []
         parcelas_por_mes = {(p.get("Competencia"), str(p.get("Ano"))): p for p in parcelas}
 
@@ -385,8 +401,8 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
         mes, vencimento, linha = ultimo
         linhas.append({
             "RA": str(registro.get("RA", "")),
-            "CPF": str(registro.get("CPF Responsavel", "")),  # só o da tela Alterar Dados
-            "Nome": registro.get("Nome Responsavel", ""),  # só o da tela Alterar Dados
+            "CPF": cpf_final(registro),  # responsável (tela Alterar Dados); reserva: CPF do aluno
+            "Nome": nome_final(registro),  # responsável (tela Alterar Dados); reserva: nome do aluno
             "Telefone": telefone_disparo(registro.get("Celular", "")),
             "MÊS": mes,
             "Vencimento": vencimento,

@@ -32,6 +32,8 @@ from html.parser import HTMLParser
 
 import pdfplumber
 import requests
+
+import validacao
 from selenium.common.exceptions import (
     InvalidSessionIdException,
     NoSuchWindowException,
@@ -215,6 +217,57 @@ class ColaboraClient:
             "nome_responsavel": nome.get("edmatric.ematNmFiador") or ids.get("nomeResponsavel", ""),
         }
 
+    def ler_dados_cadastrais_com_tentativas(self, ra, aluno: dict):
+        """
+        Tenta ler celular, CPF e nome do responsável até
+        config.TENTATIVAS_DADOS_CADASTRAIS vezes no MESMO aluno (a tela às
+        vezes vem incompleta ou falha na primeira). Junta o melhor de cada
+        tentativa. Se depois das tentativas faltar algo, usa os dados do
+        próprio aluno (nome/CPF/telefone da lista de matrículas) pra nunca
+        ficar ponto ou campo vazio.
+        Devolve (dados, avisos): dados = {celular, cpf_responsavel,
+        nome_responsavel}; avisos = lista de textos sobre o que foi de reserva.
+        """
+        melhor = {"celular": "", "cpf_responsavel": "", "nome_responsavel": ""}
+        ultimo_erro = None
+        total = config.TENTATIVAS_DADOS_CADASTRAIS
+        for tentativa in range(1, total + 1):
+            try:
+                dados = self.ler_dados_cadastrais(ra)
+                if validacao.telefone_valido(dados["celular"]):
+                    melhor["celular"] = dados["celular"]
+                if validacao.cpf_valido(dados["cpf_responsavel"]):
+                    melhor["cpf_responsavel"] = dados["cpf_responsavel"]
+                if validacao.nome_valido(dados["nome_responsavel"]):
+                    melhor["nome_responsavel"] = dados["nome_responsavel"]
+                ultimo_erro = None
+            except Exception as erro:  # pylint: disable=broad-except
+                if self._e_sessao_morta(erro):
+                    raise
+                ultimo_erro = erro
+            if all(melhor.values()):
+                break
+            if tentativa < total:
+                time.sleep(1.0 * tentativa)
+
+        avisos = []
+        if not melhor["nome_responsavel"]:
+            if validacao.nome_valido(aluno.get("nome")):
+                melhor["nome_responsavel"] = aluno["nome"]
+            avisos.append("sem nome do responsável: usado o nome do aluno")
+        if not melhor["cpf_responsavel"]:
+            if validacao.cpf_valido(aluno.get("cpf")):
+                melhor["cpf_responsavel"] = aluno["cpf"]
+            avisos.append("sem CPF do responsável: usado o CPF do aluno")
+        if not melhor["celular"]:
+            if validacao.telefone_valido(aluno.get("telefone")):
+                melhor["celular"] = aluno["telefone"]
+            avisos.append("celular não encontrado" if not melhor["celular"]
+                          else "sem celular na tela de dados: usado o telefone da lista")
+        if ultimo_erro is not None and avisos:
+            avisos.append(f"última falha: {ultimo_erro}")
+        return melhor, avisos
+
     # ------------------------------------------------------------------
     # Passo 2: parcelas
     # ------------------------------------------------------------------
@@ -298,18 +351,11 @@ class ColaboraClient:
             registro["Situacao Matricula"] = aluno["situacao_matricula"]
             registro["Situacao"] = "Inadimplente" if aluno["pendencia_financeira"] else "Adimplente"
 
-            aviso_dados = ""
-            try:
-                dados = self.ler_dados_cadastrais(ra)
-                registro["Celular"] = dados["celular"]
-                registro["CPF Responsavel"] = dados["cpf_responsavel"]
-                registro["Nome Responsavel"] = dados["nome_responsavel"]
-            except Exception as erro:  # pylint: disable=broad-except
-                if self._e_sessao_morta(erro):
-                    raise
-                # não trava o RA: segue com o telefone da lista e avisa no status
-                registro["Celular"] = aluno["telefone"]
-                aviso_dados = f" (AVISO: dados cadastrais não lidos: {erro})"
+            dados, avisos = self.ler_dados_cadastrais_com_tentativas(ra, aluno)
+            registro["Celular"] = dados["celular"]
+            registro["CPF Responsavel"] = dados["cpf_responsavel"]
+            registro["Nome Responsavel"] = dados["nome_responsavel"]
+            aviso_dados = f" (AVISO: {'; '.join(avisos)})" if avisos else ""
 
             parcelas = self.listar_parcelas(ra)
             boletos, erros_boleto = 0, []

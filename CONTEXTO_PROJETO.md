@@ -52,6 +52,7 @@ A escolha do polo é **sempre do usuário**, porque um mesmo login pode ter vár
 - Lida em segundo plano (`requests` com os cookies da sessão), sem abrir página no Chrome. Função `ler_dados_cadastrais`.
 - **Telefone:** `edmatric.edaluno.ealuNrTelefoneCelular` (id `foneCelular`); se vazio, `edmatric.edaluno.ealuNrFoneCelularCob`. **Substituiu o telefone da lista de matrículas**, que vinha errado (era o Fone Resid. do responsável, ex.: "9").
 - **CPF do responsável:** `edmatric.ematDsCpfFiador`. **Nome do responsável:** `edmatric.ematNmFiador`.
+- **3 tentativas:** a leitura dessa tela é repetida até 3 vezes no mesmo RA (`config.TENTATIVAS_DADOS_CADASTRAIS`), juntando o melhor de cada tentativa. Valores de enchimento do site (nome ".", CPF `00000000009`, telefone curto como "9") contam como inválidos (`validacao.py`). Se após 3 tentativas faltar nome/CPF do responsável, usa o nome/CPF do aluno (da lista); se faltar celular, usa o telefone da lista se for válido, senão fica em branco com AVISO no status. Nenhum arquivo sai com "." ou CPF de enchimento.
 - Se a tela falhar, o RA não trava: usa o telefone da lista e o status fica "OK (AVISO: dados cadastrais não lidos: ...)".
 
 **Parcelas**

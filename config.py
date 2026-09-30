@@ -169,6 +169,10 @@ COLUNAS_SAIDA = [
 # colunas de responsável — Nome e CPF já saem com os da tela "Alterar Dados".
 COLUNAS_ARQUIVO_RESULTADO = [c for c in COLUNAS_SAIDA if c not in ("CPF Responsavel", "Nome Responsavel")]
 
+# Quantas vezes tentar ler os dados cadastrais (celular, nome e CPF) do MESMO
+# aluno antes de desistir e usar os dados de reserva.
+TENTATIVAS_DADOS_CADASTRAIS = 3
+
 # Tempo máximo de espera (segundos) por elemento na página
 TIMEOUT_PADRAO = 25
 
