@@ -159,6 +159,18 @@ def ler_telefones_base(caminho_arquivo: str) -> dict:
     return telefones
 
 
+def _linha_resultado(registro: dict) -> dict:
+    """Linha do resultado/backup: Nome e CPF vêm da tela "Alterar Dados"
+    (responsável) quando existirem; se a consulta falhou e a tela não foi
+    lida, mantém o Nome/CPF da lista pra não perder a identificação do RA."""
+    linha = {c: registro.get(c, "") for c in config.COLUNAS_ARQUIVO_RESULTADO}
+    if str(registro.get("Nome Responsavel", "")).strip():
+        linha["Nome"] = registro["Nome Responsavel"]
+    if str(registro.get("CPF Responsavel", "")).strip():
+        linha["CPF"] = registro["CPF Responsavel"]
+    return linha
+
+
 def salvar_resultado(registros: list, pasta_saida: str = None, momento: datetime = None) -> tuple:
     """
     Salva a lista de registros (lista de dicionários, chaves = config.COLUNAS_SAIDA)
@@ -183,7 +195,7 @@ def salvar_resultado(registros: list, pasta_saida: str = None, momento: datetime
     pasta_execucao = os.path.join(pasta_saida, nome_pasta_execucao)
     os.makedirs(pasta_execucao, exist_ok=True)
 
-    df = pd.DataFrame(registros, columns=config.COLUNAS_SAIDA)
+    df = pd.DataFrame([_linha_resultado(r) for r in registros], columns=config.COLUNAS_ARQUIVO_RESULTADO)
 
     caminho_csv = os.path.join(pasta_execucao, "resultado.csv")
     caminho_xlsx = os.path.join(pasta_execucao, "resultado.xlsx")
@@ -432,11 +444,11 @@ def gravar_backup_linha(registro: dict, pasta_saida: str = None, momento: dateti
         with open(caminho, "a", encoding="utf-8", newline="") as f:
             if novo:
                 f.write("\ufeff")  # BOM: o Excel abre com acentos corretos
-            w = csv_modulo.DictWriter(f, fieldnames=config.COLUNAS_SAIDA, delimiter=";",
+            w = csv_modulo.DictWriter(f, fieldnames=config.COLUNAS_ARQUIVO_RESULTADO, delimiter=";",
                                extrasaction="ignore", restval="")
             if novo:
                 w.writeheader()
-            w.writerow({c: registro.get(c, "") for c in config.COLUNAS_SAIDA})
+            w.writerow(_linha_resultado(registro))
             f.flush()
             os.fsync(f.fileno())
         return caminho

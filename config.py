@@ -142,6 +142,10 @@ COLUNAS_SAIDA = [
     "Status da Consulta",    # OK / Erro: <mensagem>
 ]
 
+# Colunas que vão pro resultado.csv/.xlsx e pro backup_parcial.csv: sem as
+# colunas de responsável — Nome e CPF já saem com os da tela "Alterar Dados".
+COLUNAS_ARQUIVO_RESULTADO = [c for c in COLUNAS_SAIDA if c not in ("CPF Responsavel", "Nome Responsavel")]
+
 # Tempo máximo de espera (segundos) por elemento na página
 TIMEOUT_PADRAO = 25
 
