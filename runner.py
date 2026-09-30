@@ -27,19 +27,6 @@ def _dividir_em_blocos(lista, n_blocos):
     return [bloco for bloco in blocos if bloco]
 
 
-def _dividir_contiguo(lista, n_blocos):
-    """Divide em n blocos de pedaços CONSECUTIVOS (mantém RAs do mesmo polo
-    juntos, pra cada janela trocar de polo o mínimo possível)."""
-    n_blocos = max(1, min(n_blocos, len(lista)) or 1)
-    base, resto = divmod(len(lista), n_blocos)
-    blocos, inicio = [], 0
-    for i in range(n_blocos):
-        fim = inicio + base + (1 if i < resto else 0)
-        blocos.append(lista[inicio:fim])
-        inicio = fim
-    return [b for b in blocos if b]
-
-
 def _registro_erro(ra, apelido, polo, mensagem):
     registro = {coluna: "" for coluna in config.COLUNAS_SAIDA}
     registro.update({"RA": str(ra), "Perfil": apelido, "Polo": polo,
@@ -68,12 +55,8 @@ def _e_erro_de_timeout(status: str) -> bool:
 
 
 def _worker(perfil_id, ras_do_perfil, resultados_queue, log_callback,
-            progresso_callback, inicio_ra_callback, headless, evento_parar: threading.Event,
-            polo_por_ra=None):
+            progresso_callback, inicio_ra_callback, headless, evento_parar: threading.Event):
     apelido = perfis.obter_apelido(perfil_id)
-    auto = bool(polo_por_ra)   # base com coluna POLO: entra sozinho no polo de cada RA
-    polo_atual = None
-    polos_falhos = {}
     driver = None
     MAX_REINICIOS_SEGUIDOS = 3
     reinicios_seguidos = 0
@@ -81,51 +64,22 @@ def _worker(perfil_id, ras_do_perfil, resultados_queue, log_callback,
         log_callback(f"[{apelido}] abrindo navegador...")
         driver = browser_manager.criar_driver_worker(perfil_id, headless=headless)
         log_perfil = lambda msg: log_callback(f"[{apelido}] {msg}")  # noqa: E731
-        if not auto and not aguardar_colaborar(driver, evento_parar, log=log_perfil,
-                                               tempo_limite=config.TEMPO_ESPERA_ACESSO_COLABORA):
+        if not aguardar_colaborar(driver, evento_parar, log=log_perfil,
+                                  tempo_limite=config.TEMPO_ESPERA_ACESSO_COLABORA):
             log_callback(f"[{apelido}] não entrou no Colaboraread — esse perfil não vai processar RAs.")
             return
 
         cliente = ColaboraClient(driver, log=log_perfil)
-
-        def _finalizar_registro(registro_final):
-            registro_final["Perfil"] = apelido
-            resultados_queue.put(registro_final)
-            progresso_callback(registro_final)
-            log_callback(f"[{apelido}] RA {registro_final.get('RA')} -> {registro_final.get('Status da Consulta', '')}")
 
         for ra in ras_do_perfil:
             if evento_parar.is_set():
                 log_callback(f"[{apelido}] interrompido pelo usuário.")
                 break
 
-            polo = ""
-            if auto:
-                polo = (polo_por_ra.get(str(ra).strip()) or "").strip()
-                inicio_ra_callback(apelido, ra)
-                if not polo:
-                    _finalizar_registro(_registro_erro(ra, apelido, "", "POLO não informado para este RA na base"))
-                    continue
-                if polo in polos_falhos:
-                    _finalizar_registro(_registro_erro(ra, apelido, polo, polos_falhos[polo]))
-                    continue
-                if polo != polo_atual:
-                    ok, motivo = entrar_no_polo(driver, polo, evento_parar, log=log_perfil,
-                                                tempo_login=config.TEMPO_ESPERA_ACESSO_COLABORA)
-                    if not ok:
-                        if evento_parar.is_set():
-                            break
-                        log_callback(f"[{apelido}] não entrei no polo '{polo}': {motivo}")
-                        polos_falhos[polo] = f"não entrou no polo '{polo}': {motivo}"
-                        _finalizar_registro(_registro_erro(ra, apelido, polo, polos_falhos[polo]))
-                        continue
-                    polo_atual = polo
-
             log_callback(f"[{apelido}] consultando RA {ra}...")
             inicio_ra_callback(apelido, ra)  # avisa que esse RA começou (pro dashboard)
 
             registro = cliente.consultar_ra(ra)
-            registro["Polo"] = polo
 
             # timeout: tenta de novo -- até MAX_TENTATIVAS_TIMEOUT no total pro mesmo RA.
             tentativa = 1
@@ -170,9 +124,8 @@ def _worker(perfil_id, ras_do_perfil, resultados_queue, log_callback,
                 time.sleep(1.5)  # dá tempo do Windows liberar os arquivos do processo morto
                 try:
                     driver = browser_manager.criar_driver_worker(perfil_id, headless=headless)
-                    polo_atual = None  # no modo automático, o próximo RA entra no polo de novo
-                    if not auto and not aguardar_colaborar(driver, evento_parar, log=log_perfil,
-                                                           tempo_limite=config.TEMPO_ESPERA_ACESSO_COLABORA):
+                    if not aguardar_colaborar(driver, evento_parar, log=log_perfil,
+                                              tempo_limite=config.TEMPO_ESPERA_ACESSO_COLABORA):
                         log_callback(f"[{apelido}] não voltou pro Colaboraread após reiniciar — parando esse perfil.")
                         break
                     cliente = ColaboraClient(driver, log=log_perfil)
@@ -213,12 +166,13 @@ def executar(ras: list, perfis_selecionados: list, headless: bool = False,
     if not perfis_selecionados:
         raise ValueError("Selecione ao menos um perfil para executar a automação.")
 
+    if polos:  # base com coluna POLO: um polo de cada vez, todas as janelas juntas
+        return executar_por_polo(ras, polos, perfis_selecionados, headless=headless,
+                                 log_callback=log_callback, progresso_callback=progresso_callback,
+                                 inicio_ra_callback=inicio_ra_callback, evento_parar=evento_parar)
+
     evento_parar = evento_parar or threading.Event()
-    if polos:  # modo automático: agrupa por polo e divide em pedaços consecutivos
-        ras_ordenadas = sorted(ras, key=lambda r: (polos.get(str(r).strip()) or ""))
-        blocos = _dividir_contiguo(ras_ordenadas, len(perfis_selecionados))
-    else:
-        blocos = _dividir_em_blocos(ras, len(perfis_selecionados))
+    blocos = _dividir_em_blocos(ras, len(perfis_selecionados))
     # garante correspondência 1:1 entre bloco e perfil, mesmo se houver menos
     # blocos que perfis selecionados (lista de RAs menor que nº de perfis)
     pares = list(zip(perfis_selecionados, blocos))
@@ -230,7 +184,7 @@ def executar(ras: list, perfis_selecionados: list, headless: bool = False,
         t = threading.Thread(
             target=_worker,
             args=(perfil_id, bloco, resultados_queue, log_callback,
-                  progresso_callback, inicio_ra_callback, headless, evento_parar, polos),
+                  progresso_callback, inicio_ra_callback, headless, evento_parar),
             daemon=True,
         )
         threads.append(t)
@@ -243,4 +197,165 @@ def executar(ras: list, perfis_selecionados: list, headless: bool = False,
     while not resultados_queue.empty():
         resultados.append(resultados_queue.get())
 
+    return resultados
+
+
+# ===========================================================================
+# MODO AUTOMÁTICO POR POLO (base com coluna POLO)
+# Um polo de cada vez: todas as janelas (perfis) trabalham JUNTAS nos RAs do
+# polo atual (fila compartilhada); quando acaba o último RA daquele polo,
+# passa pro próximo. Nunca alterna entre polos.
+# ===========================================================================
+def _consultar_com_tentativas(cliente, ra, apelido, evento_parar, log_callback):
+    """consultar_ra + novas tentativas em caso de timeout (igual ao modo manual)."""
+    registro = cliente.consultar_ra(ra)
+    tentativa = 1
+    while (_e_erro_de_timeout(registro.get("Status da Consulta", ""))
+           and tentativa < MAX_TENTATIVAS_TIMEOUT and not evento_parar.is_set()):
+        tentativa += 1
+        log_callback(f"[{apelido}] RA {ra}: tempo esgotado — tentando de novo "
+                     f"(tentativa {tentativa}/{MAX_TENTATIVAS_TIMEOUT})...")
+        registro = cliente.consultar_ra(ra)
+    return registro
+
+
+def _worker_polo(estado, polo, fila_ras, resultados_queue, log_callback, progresso_callback,
+                 inicio_ra_callback, headless, evento_parar, falhas):
+    """Uma janela trabalhando no polo atual: entra no polo e puxa RAs da fila
+    compartilhada até acabar."""
+    perfil_id = estado["perfil_id"]
+    apelido = perfis.obter_apelido(perfil_id)
+    log_perfil = lambda msg: log_callback(f"[{apelido}] {msg}")  # noqa: E731
+    if estado["morto"]:
+        return
+
+    def _entrar() -> bool:
+        if estado["driver"] is None:
+            log_perfil("abrindo navegador...")
+            estado["driver"] = browser_manager.criar_driver_worker(perfil_id, headless=headless)
+        ok, motivo = entrar_no_polo(estado["driver"], polo, evento_parar, log=log_perfil,
+                                    tempo_login=config.TEMPO_ESPERA_ACESSO_COLABORA)
+        if not ok:
+            falhas.append(f"[{apelido}] {motivo}")
+            log_perfil(f"não entrei no polo '{polo}': {motivo}")
+            return False
+        estado["cliente"] = ColaboraClient(estado["driver"], log=log_perfil)
+        return True
+
+    try:
+        if not _entrar():
+            return
+        while not evento_parar.is_set():
+            try:
+                ra = fila_ras.get_nowait()
+            except queue.Empty:
+                break
+            log_callback(f"[{apelido}] consultando RA {ra}...")
+            inicio_ra_callback(apelido, ra)
+            cliente = estado["cliente"]
+            registro = _consultar_com_tentativas(cliente, ra, apelido, evento_parar, log_callback)
+            registro["Perfil"] = apelido
+            registro["Polo"] = polo
+            resultados_queue.put(registro)
+            progresso_callback(registro)
+            log_callback(f"[{apelido}] RA {ra} -> {registro.get('Status da Consulta', '')}")
+
+            if cliente.sessao_morta:
+                estado["reinicios"] += 1
+                if estado["reinicios"] > 3:
+                    log_perfil("o navegador morreu várias vezes seguidas — desistindo desse perfil.")
+                    estado["morto"] = True
+                    break
+                log_perfil(f"sessão do navegador morreu — reiniciando ({estado['reinicios']}/3)...")
+                try:
+                    estado["driver"].quit()
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                estado["driver"] = None
+                time.sleep(1.5)
+                if not _entrar():
+                    estado["morto"] = True
+                    break
+            else:
+                estado["reinicios"] = 0
+    except Exception as erro:  # pylint: disable=broad-except
+        log_perfil(f"ERRO: {erro}")
+        falhas.append(f"[{apelido}] {erro}")
+
+
+def executar_por_polo(ras: list, polos: dict, perfis_selecionados: list, headless: bool = False,
+                      log_callback=print, progresso_callback=lambda registro: None,
+                      inicio_ra_callback=lambda apelido, ra: None,
+                      evento_parar: threading.Event = None) -> list:
+    """Processa polo por polo (em ordem alfabética). Dentro de cada polo as
+    janelas dividem os RAs por uma fila compartilhada. Retorna os registros."""
+    evento_parar = evento_parar or threading.Event()
+    resultados_queue = queue.Queue()
+
+    def _emitir_erro(ra, polo, mensagem):
+        registro = _registro_erro(ra, "", polo, mensagem)
+        resultados_queue.put(registro)
+        progresso_callback(registro)
+
+    por_polo = {}
+    for ra in ras:
+        polo = (polos.get(str(ra).strip()) or "").strip()
+        if not polo:
+            log_callback(f"RA {ra}: sem polo na base — não será processado.")
+            _emitir_erro(ra, "", "POLO não informado para este RA na base")
+            continue
+        por_polo.setdefault(polo, []).append(ra)
+
+    ordem = sorted(por_polo, key=lambda p: p.casefold())
+    log_callback(f"{len(ras)} RA(s) em {len(ordem)} polo(s). Ordem de execução: " + " | ".join(ordem))
+
+    estados = [{"perfil_id": pid, "driver": None, "cliente": None, "reinicios": 0, "morto": False}
+               for pid in perfis_selecionados]
+    try:
+        for indice, polo in enumerate(ordem, start=1):
+            if evento_parar.is_set():
+                break
+            lista = por_polo[polo]
+            log_callback(f"===== Rodando POLO {polo} ({len(lista)} RA(s)) — polo {indice} de {len(ordem)} =====")
+            fila = queue.Queue()
+            for ra in lista:
+                fila.put(ra)
+            falhas = []
+            threads = []
+            for estado in estados:
+                t = threading.Thread(
+                    target=_worker_polo, daemon=True,
+                    args=(estado, polo, fila, resultados_queue, log_callback, progresso_callback,
+                          inicio_ra_callback, headless, evento_parar, falhas))
+                threads.append(t)
+                t.start()
+            for t in threads:
+                t.join()
+
+            # sobrou RA na fila (nenhuma janela conseguiu entrar/continuar): marca erro
+            restantes = 0
+            while True:
+                try:
+                    ra = fila.get_nowait()
+                except queue.Empty:
+                    break
+                if evento_parar.is_set():
+                    break
+                restantes += 1
+                motivo = falhas[0] if falhas else "nenhuma janela disponível"
+                _emitir_erro(ra, polo, f"não processado no polo '{polo}': {motivo}")
+            if restantes:
+                log_callback(f"POLO {polo}: {restantes} RA(s) não processado(s) — veja o motivo nos erros acima.")
+            log_callback(f"===== POLO {polo} concluído =====")
+    finally:
+        for estado in estados:
+            if estado["driver"] is not None:
+                try:
+                    estado["driver"].quit()
+                except Exception:  # pylint: disable=broad-except
+                    pass
+
+    resultados = []
+    while not resultados_queue.empty():
+        resultados.append(resultados_queue.get())
     return resultados
