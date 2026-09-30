@@ -345,9 +345,10 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     Arquivo enxuto pra disparo (base_disparo.csv/.xlsx), no modelo
     Base_Links_para_Disparo, uma linha por aluno que tem boleto:
 
-        RA | CPF | Nome | Telefone | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado
+        RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
 
-    - CPF: o da tela "Alterar Dados" (CPF do responsável, mesma origem do celular).
+    - CPF e Nome: os da tela "Alterar Dados" (CPF/nome do responsável, mesma
+      origem do celular). Sem colunas duplicadas.
 
     - Traz só o ÚLTIMO código gerado (parcela com boleto de vencimento mais
       recente). Alunos sem nenhum boleto ficam de fora.
@@ -371,9 +372,8 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
         linhas.append({
             "RA": str(registro.get("RA", "")),
             "CPF": str(registro.get("CPF Responsavel", "")),  # só o da tela Alterar Dados
-            "Nome": registro.get("Nome", ""),
+            "Nome": registro.get("Nome Responsavel", ""),  # só o da tela Alterar Dados
             "Telefone": telefone_disparo(registro.get("Celular", "")),
-            "Nome Responsável": registro.get("Nome Responsavel", ""),
             "MÊS": mes,
             "Vencimento": vencimento,
             "_boleto": linha,
@@ -385,7 +385,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     for l in linhas:
         l[coluna_boleto] = l.pop("_boleto")
 
-    colunas = ["RA", "CPF", "Nome", "Telefone", "Nome Responsável",
+    colunas = ["RA", "CPF", "Nome", "Telefone",
                "MÊS", "Vencimento", coluna_boleto]
     df = pd.DataFrame(linhas, columns=colunas)
 
@@ -404,7 +404,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             if str(tel.value or "").isdigit() and str(tel.value).startswith("55"):
                 tel.value = int(tel.value)
                 tel.number_format = "0"
-        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 40, "F": 11, "G": 12, "H": 52}
+        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 11, "F": 12, "G": 52}
         for col, largura in larguras.items():
             ws.column_dimensions[col].width = largura
 

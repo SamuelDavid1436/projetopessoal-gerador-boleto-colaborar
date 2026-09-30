@@ -24,7 +24,7 @@ CSV ou Excel. **RA na 1ª coluna** (com ou sem cabeçalho). **Telefone é opcion
 `RA | Nome | CPF | Telefone | CPF Responsável | Nome Responsável | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado` (Junho a Dezembro; período em `config.py`).
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, só com o **último** boleto gerado de cada aluno.
-`RA | CPF | Nome | Telefone | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
+`RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
 
 **`resultado.csv/.xlsx`**: resumo técnico por RA (Status da Consulta), usado pelo "Reprocessar erros".
 
