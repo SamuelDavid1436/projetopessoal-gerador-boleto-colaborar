@@ -100,7 +100,7 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`relatorio_meses.csv/.xlsx`**: todos os códigos do aluno, até dezembro. Colunas, nesta ordem:
 
-`Polo | RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
+`RA | Polo | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
 
 - Os meses vão de Junho a Dezembro; o período está em `config.MES_MINIMO_RELATORIO` e `config.MES_MAXIMO_RELATORIO`.
 - **Mês:** calculado pelo **vencimento** da parcela.
@@ -112,7 +112,7 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, baseado no modelo "Base_Links_para_Disparo". Colunas, nesta ordem:
 
-`Polo | RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`
+`RA | Polo | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`
 
 - Traz só o **último código gerado** do aluno, ou seja, a parcela com boleto de vencimento mais recente.
 - Alunos sem nenhum boleto ficam de fora.

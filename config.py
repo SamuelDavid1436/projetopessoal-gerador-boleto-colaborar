@@ -154,8 +154,8 @@ ANO_MAXIMO_RELATORIO = "2026"
 # Colunas do arquivo de saída (CSV e Excel) — ordem final
 # ---------------------------------------------------------------------------
 COLUNAS_SAIDA = [
+    "RA",                     # sempre a 1ª coluna (chave do PROCV)
     "Polo",                   # polo informado na base (modo automático); vazio no modo manual
-    "RA",
     "Perfil",                 # qual dos perfis (janela) consultou esse RA
     "Nome",
     "CPF",

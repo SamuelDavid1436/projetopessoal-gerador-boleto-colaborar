@@ -263,7 +263,7 @@ _SUBCOLUNAS_POR_MES = ["Situacao Mensalidade", "Valor Pago", "Vencimento", "Bole
 
 # Ordem final do relatório: RA, Nome, CPF, Telefone, Situação e depois um
 # bloco fixo pra cada mês de config.MES_MINIMO_RELATORIO até MES_MAXIMO_RELATORIO.
-_COLUNAS_FIXAS_INICIO = ["Polo", "RA", "Nome", "CPF", "Celular", "Situacao"]
+_COLUNAS_FIXAS_INICIO = ["RA", "Polo", "Nome", "CPF", "Celular", "Situacao"]
 
 
 def _meses_fixos_relatorio() -> list:
@@ -295,7 +295,7 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
     Gera o relatorio_meses.csv/.xlsx (o arquivo que o usuário recebe), uma
     linha por aluno, com as colunas:
 
-        Polo | RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade |
+        RA | Polo | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade |
         <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado | ... (Junho a Dezembro)
 
     - Situação: Inadimplente/Adimplente (ícone de pendência financeira no
@@ -410,7 +410,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     Arquivo enxuto pra disparo (base_disparo.csv/.xlsx), no modelo
     Base_Links_para_Disparo, uma linha por aluno que tem boleto:
 
-        Polo | RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
+        RA | Polo | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
 
     - CPF e Nome: os da tela "Alterar Dados" (CPF/nome do responsável, mesma
       origem do celular). Sem colunas duplicadas.
@@ -435,8 +435,8 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             continue
         mes, vencimento, linha = ultimo
         linhas.append({
-            "Polo": registro.get("Polo", ""),
             "RA": str(registro.get("RA", "")),
+            "Polo": registro.get("Polo", ""),
             "CPF": cpf_final(registro),  # responsável (tela Alterar Dados); reserva: CPF do aluno
             "Nome": nome_final(registro),  # responsável (tela Alterar Dados); reserva: nome do aluno
             "Telefone": telefone_disparo(registro.get("Celular", "")),
@@ -451,7 +451,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     for l in linhas:
         l[coluna_boleto] = l.pop("_boleto")
 
-    colunas = ["Polo", "RA", "CPF", "Nome", "Telefone",
+    colunas = ["RA", "Polo", "CPF", "Nome", "Telefone",
                "MÊS", "Vencimento", coluna_boleto]
     df = pd.DataFrame(linhas, columns=colunas)
 
@@ -470,7 +470,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             if str(tel.value or "").isdigit() and str(tel.value).startswith("55"):
                 tel.value = int(tel.value)
                 tel.number_format = "0"
-        larguras = {"A": 34, "B": 13, "C": 14, "D": 46, "E": 16, "F": 11, "G": 12, "H": 52}
+        larguras = {"A": 13, "B": 34, "C": 14, "D": 46, "E": 16, "F": 11, "G": 12, "H": 52}
         for col, largura in larguras.items():
             ws.column_dimensions[col].width = largura
 
