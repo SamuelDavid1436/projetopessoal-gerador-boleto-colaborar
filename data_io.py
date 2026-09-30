@@ -200,7 +200,7 @@ _SUBCOLUNAS_POR_MES = ["Situacao Mensalidade", "Valor Pago", "Vencimento", "Bole
 
 # Ordem final do relatório: RA, Nome, CPF, Telefone, Situação e depois um
 # bloco fixo pra cada mês de config.MES_MINIMO_RELATORIO até MES_MAXIMO_RELATORIO.
-_COLUNAS_FIXAS_INICIO = ["RA", "Nome", "CPF", "Celular", "CPF Responsavel", "Nome Responsavel", "Situacao"]
+_COLUNAS_FIXAS_INICIO = ["RA", "Nome", "CPF", "Celular", "Situacao"]
 
 
 def _meses_fixos_relatorio() -> list:
@@ -265,6 +265,9 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
     linhas = []
     for registro in resultados:
         linha = {coluna: registro.get(coluna, "") for coluna in _COLUNAS_FIXAS_INICIO}
+        # Nome e CPF: só os da tela "Alterar Dados" (sem colunas duplicadas)
+        linha["Nome"] = registro.get("Nome Responsavel", "")
+        linha["CPF"] = registro.get("CPF Responsavel", "")
         parcelas = registro.get("_parcelas_relatorio", []) or []
         parcelas_por_mes = {(p.get("Competencia"), str(p.get("Ano"))): p for p in parcelas}
 
@@ -299,8 +302,7 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
 
     df = pd.DataFrame(linhas, columns=colunas_finais)
     # cabeçalho igual ao modelo: "Situação" com acento
-    df = df.rename(columns={"Situacao": "Situação", "Celular": "Telefone",
-                            "CPF Responsavel": "CPF Responsável", "Nome Responsavel": "Nome Responsável"})
+    df = df.rename(columns={"Situacao": "Situação", "Celular": "Telefone"})
 
     caminho_csv = os.path.join(pasta_execucao, "relatorio_meses.csv")
     caminho_xlsx = os.path.join(pasta_execucao, "relatorio_meses.xlsx")

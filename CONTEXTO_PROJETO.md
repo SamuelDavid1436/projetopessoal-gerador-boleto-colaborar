@@ -99,7 +99,7 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`relatorio_meses.csv/.xlsx`**: todos os códigos do aluno, até dezembro. Colunas, nesta ordem:
 
-`RA | Nome | CPF | Telefone | CPF Responsável | Nome Responsável | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
+`RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
 
 - Os meses vão de Junho a Dezembro; o período está em `config.MES_MINIMO_RELATORIO` e `config.MES_MAXIMO_RELATORIO`.
 - **Mês:** calculado pelo **vencimento** da parcela.
