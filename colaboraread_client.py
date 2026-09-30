@@ -300,6 +300,26 @@ class ColaboraClient:
     # ------------------------------------------------------------------
     # Passo 3: gerar boleto (POST) e extrair linha digitável do PDF
     # ------------------------------------------------------------------
+    def capturar_linha_digitavel_com_tentativas(self, ra, parcela):
+        """Tenta gerar o boleto até config.TENTATIVAS_BOLETO vezes quando a falha
+        parece passageira (lentidão/queda de conexão do site, resposta que não
+        veio em PDF). Dígito verificador inválido não é repetido."""
+        total = config.TENTATIVAS_BOLETO
+        for tentativa in range(1, total + 1):
+            try:
+                return self.capturar_linha_digitavel(ra, parcela)
+            except Exception as erro:  # pylint: disable=broad-except
+                if self._e_sessao_morta(erro):
+                    raise
+                passageiro = isinstance(erro, requests.RequestException) or (
+                    isinstance(erro, RuntimeError)
+                    and ("não veio em PDF" in str(erro) or "não encontrada" in str(erro)))
+                if not passageiro or tentativa == total:
+                    raise
+                self.log(f"RA {ra} parcela {parcela}: falha ao gerar o boleto "
+                         f"({type(erro).__name__}) — tentando de novo ({tentativa + 1}/{total})...")
+                time.sleep(2 * tentativa)
+
     def capturar_linha_digitavel(self, ra, parcela):
         form = self.driver.find_element(By.NAME, f"form{parcela}{ra}")
         action = form.get_attribute("action") or config.URL_COLABORA_BOLETO
@@ -311,9 +331,9 @@ class ColaboraClient:
 
         s = self._session_requests()
         if metodo == "get":
-            r = s.get(action, params=dados, timeout=self.timeout)
+            r = s.get(action, params=dados, timeout=config.TIMEOUT_BOLETO)
         else:
-            r = s.post(action, data=dados, timeout=self.timeout)
+            r = s.post(action, data=dados, timeout=config.TIMEOUT_BOLETO)
         r.raise_for_status()
 
         tipo = r.headers.get("Content-Type", "").lower()
@@ -370,7 +390,7 @@ class ColaboraClient:
 
                 if p.pop("_gera_boleto"):
                     try:
-                        p["Boleto Gerado"] = self.capturar_linha_digitavel(ra, p["Parcela"])
+                        p["Boleto Gerado"] = self.capturar_linha_digitavel_com_tentativas(ra, p["Parcela"])
                         boletos += 1
                     except Exception as erro:  # pylint: disable=broad-except
                         if self._e_sessao_morta(erro):

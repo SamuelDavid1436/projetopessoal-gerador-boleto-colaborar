@@ -176,6 +176,11 @@ TENTATIVAS_DADOS_CADASTRAIS = 3
 # Tempo máximo de espera (segundos) por elemento na página
 TIMEOUT_PADRAO = 25
 
+# Geração do boleto (POST que devolve o PDF): o Colaboraread às vezes demora
+# mais que o normal, então espera mais e tenta de novo antes de dar erro.
+TIMEOUT_BOLETO = 60
+TENTATIVAS_BOLETO = 3
+
 # ---------------------------------------------------------------------------
 # Histórico de execuções (usado no dashboard/página de Execuções)
 # ---------------------------------------------------------------------------
