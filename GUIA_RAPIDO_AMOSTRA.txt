@@ -1,0 +1,38 @@
+CAPTURA BOLETO COLABORAREAD - versão de amostra
+==============================================
+
+O QUE O PROGRAMA FAZ
+Para cada RA da sua planilha, consulta o Colaboraread, lê todas as parcelas
+e captura a linha digitável (código de barras) dos boletos disponíveis.
+
+PRECISA TER
+- Windows com Google Chrome instalado e internet.
+
+1) PREPARAR A PLANILHA (Excel ou CSV)
+   - Coluna A: RA (matrícula do Colaborar)
+   - Coluna B (opcional): Telefone. Se preencher, ele é usado no lugar do
+     telefone cadastrado no Colaboraread.
+
+2) CONFIGURAR OS PERFIS (tela "Perfis")
+   - Até 3 perfis. Cada perfil abre uma janela do Chrome separada, que
+     trabalha em paralelo com as outras.
+   - Clique em "Login manual" e faça o login no Prisma uma vez.
+
+3) RODAR (tela "Execuções")
+   - "Importar base..." -> escolha a planilha -> marque os perfis -> "Importar".
+   - IMPORTANTE: em CADA janela do Chrome que abrir, faça:
+       Prisma (login) -> selecione o POLO -> Portais -> Colaborar
+     A janela fica esperando (até 15 min) e começa sozinha quando você
+     entrar no Colaboraread. A escolha do polo é sua: confira o polo certo.
+   - Acompanhe pela tela "Início" ou "Logs". "Parar" interrompe a qualquer momento.
+
+4) RESULTADO (o programa oferece abrir a pasta no final)
+   - relatorio_meses.xlsx -> todos os boletos do aluno, de Junho a Dezembro
+   - base_disparo.xlsx    -> só o último boleto de cada aluno, pronto pra disparo
+   - resultado.xlsx       -> resumo técnico (use "Reprocessar erros" se houver erros)
+
+DURANTE O TESTE, ANOTE PRA GENTE
+- RAs que deram erro ou vieram com dado estranho (os prints dos erros ficam
+  salvos em Documentos\CapturaBoletoColabora\logs\screenshots)
+- Colunas que faltam ou sobram nos arquivos
+- Quanto tempo levou e quantos perfis você usou

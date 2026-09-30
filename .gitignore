@@ -1,0 +1,39 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# --- PyInstaller ---
+build/
+dist/
+*.spec.bak
+
+# --- Certificado de assinatura de código ---
+# NUNCA suba o .pfx -- é a chave PRIVADA que assina o .exe. O .cer
+# (público) pode subir sem problema, mas o .pfx fica só localmente / num
+# cofre de senhas, nunca no repositório.
+*.pfx
+
+# --- Dados de execução (perfis do Chrome, resultados, logs) ---
+# Esses ficam em %LOCALAPPDATA%/Documentos do usuário em produção, mas
+# se alguém rodar localmente a partir do repo, evita subir por engano.
+CapturaBoletoColabora_Dados/
+CapturaBoletoColabora_Perfis/
+saida/
+logs/
+perfis/
+perfis_meta.json
+
+# --- Editor / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+dist/
+build/
+node_modules/
+__pycache__/
+*.exe
