@@ -13,7 +13,7 @@ Uso (dentro da pasta do projeto, no Windows, com o venv ativado):
 """
 
 import sys
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 
@@ -24,7 +24,12 @@ binaries = []
 hiddenimports = []
 
 # pdfplumber -> pdfminer (tabelas cmap) e pypdfium2 (DLL) também têm arquivos não-.py
-for pacote in ("customtkinter", "pdfplumber", "pdfminer", "pypdfium2", "pypdfium2_raw"):
+# selenium e webdriver_manager: o Selenium novo importa os módulos do Chrome
+# de forma "preguiçosa" (lazy), então o PyInstaller não os enxerga sozinho
+# ("No module named 'selenium.webdriver.chrome.webdriver'"). collect_all +
+# collect_submodules garantem que todos os submódulos e o selenium-manager.exe vão junto.
+for pacote in ("customtkinter", "pdfplumber", "pdfminer", "pypdfium2", "pypdfium2_raw",
+               "selenium", "webdriver_manager"):
     try:
         d, b, h = collect_all(pacote)
     except Exception:
@@ -41,7 +46,11 @@ datas += [
     ("assets/manual.docx", "assets"),
 ]
 
+hiddenimports += collect_submodules("selenium") + collect_submodules("webdriver_manager")
 hiddenimports += [
+    "selenium.webdriver.chrome.webdriver",
+    "selenium.webdriver.chrome.service",
+    "selenium.webdriver.chrome.options",
     "selenium",
     "selenium.webdriver",
     "webdriver_manager",
