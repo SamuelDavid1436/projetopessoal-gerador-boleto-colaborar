@@ -47,6 +47,13 @@ A escolha do polo é **sempre do usuário**, porque um mesmo login pode ter vár
 - Pendência financeira: presença de `img[src*='form_money_no']`, que resulta em "Inadimplente"; sem ela, "Adimplente".
 - RA inexistente: o programa detecta o recarregamento da página (staleness do campo) e não espera o timeout inteiro.
 
+**Dados cadastrais (tela "Alterar Dados")**
+- URL: `.../secretaria/matricula/formmatricula.action?alteraDados=true&edmatric.ematCd=<RA>&geoferta.gofeCd=` (é o link do nome do aluno na lista).
+- Lida em segundo plano (`requests` com os cookies da sessão), sem abrir página no Chrome. Função `ler_dados_cadastrais`.
+- **Telefone:** `edmatric.edaluno.ealuNrTelefoneCelular` (id `foneCelular`); se vazio, `edmatric.edaluno.ealuNrFoneCelularCob`. **Substituiu o telefone da lista de matrículas**, que vinha errado (era o Fone Resid. do responsável, ex.: "9").
+- **CPF do responsável:** `edmatric.ematDsCpfFiador`. **Nome do responsável:** `edmatric.ematNmFiador`.
+- Se a tela falhar, o RA não trava: usa o telefone da lista e o status fica "OK (AVISO: dados cadastrais não lidos: ...)".
+
 **Parcelas**
 - O botão do boleto é `javascript:boleto('RA')`. O programa pula esse passo e vai direto em `.../secretaria/matricula/listparcelas.action?edmatric.ematCd=<RA>`.
 - A tabela é identificada pelo cabeçalho `th` "Parc.". Colunas:
@@ -92,7 +99,7 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`relatorio_meses.csv/.xlsx`**: todos os códigos do aluno, até dezembro. Colunas, nesta ordem:
 
-`RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
+`RA | Nome | CPF | Telefone | CPF Responsável | Nome Responsável | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
 
 - Os meses vão de Junho a Dezembro; o período está em `config.MES_MINIMO_RELATORIO` e `config.MES_MAXIMO_RELATORIO`.
 - **Mês:** calculado pelo **vencimento** da parcela.
@@ -104,7 +111,7 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, baseado no modelo "Base_Links_para_Disparo". Colunas, nesta ordem:
 
-`RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`
+`RA | CPF | Nome | Telefone | CPF Responsável | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`
 
 - Traz só o **último código gerado** do aluno, ou seja, a parcela com boleto de vencimento mais recente.
 - Alunos sem nenhum boleto ficam de fora.

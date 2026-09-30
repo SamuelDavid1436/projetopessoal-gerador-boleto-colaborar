@@ -28,6 +28,7 @@ import os
 import re
 import time
 from datetime import datetime
+from html.parser import HTMLParser
 
 import pdfplumber
 import requests
@@ -54,6 +55,24 @@ _ERROS_SESSAO_MORTA = (
     "session deleted",
     "target window already closed",
 )
+
+
+class _LeitorInputs(HTMLParser):
+    """Coleta {name: value} e {id: value} de todos os <input> de uma página."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.por_nome, self.por_id = {}, {}
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "input":
+            return
+        a = dict(attrs)
+        valor = (a.get("value") or "").strip()
+        if a.get("name"):
+            self.por_nome.setdefault(a["name"], valor)
+        if a.get("id"):
+            self.por_id.setdefault(a["id"], valor)
 
 
 class SessaoColaboraExpirada(Exception):
@@ -164,6 +183,39 @@ class ColaboraClient:
         }
 
     # ------------------------------------------------------------------
+    # Passo 1b: tela "Alterar Dados" (celular e responsável financeiro)
+    # ------------------------------------------------------------------
+    def ler_dados_cadastrais(self, ra) -> dict:
+        """
+        Lê a tela formmatricula.action em segundo plano (requests com a
+        sessão do navegador, sem abrir página no Chrome). Campos:
+          - celular: Fone Celular do aluno (edmatric.edaluno.ealuNrTelefoneCelular);
+            se vazio, o Fone Celular de cobrança (ealuNrFoneCelularCob)
+          - cpf_responsavel: edmatric.ematDsCpfFiador
+          - nome_responsavel: edmatric.ematNmFiador
+        Lança RuntimeError se a página não vier com o formulário.
+        """
+        r = self._session_requests().get(
+            config.URL_COLABORA_DADOS.format(ra=ra), timeout=self.timeout
+        )
+        r.raise_for_status()
+        if not r.encoding or r.encoding.lower() == "iso-8859-1":
+            r.encoding = r.apparent_encoding or "iso-8859-1"
+        leitor = _LeitorInputs()
+        leitor.feed(r.text)
+        nome, ids = leitor.por_nome, leitor.por_id
+        if "edmatric.edaluno.ealuNrTelefoneCelular" not in nome and "foneCelular" not in ids:
+            raise RuntimeError("tela de dados da matrícula não abriu (sessão expirada?)")
+        celular = (nome.get("edmatric.edaluno.ealuNrTelefoneCelular")
+                   or ids.get("foneCelular")
+                   or nome.get("edmatric.edaluno.ealuNrFoneCelularCob") or "")
+        return {
+            "celular": celular,
+            "cpf_responsavel": nome.get("edmatric.ematDsCpfFiador") or ids.get("cpfResponsavel", ""),
+            "nome_responsavel": nome.get("edmatric.ematNmFiador") or ids.get("nomeResponsavel", ""),
+        }
+
+    # ------------------------------------------------------------------
     # Passo 2: parcelas
     # ------------------------------------------------------------------
     def listar_parcelas(self, ra):
@@ -243,9 +295,21 @@ class ColaboraClient:
 
             registro["Nome"] = aluno["nome"]
             registro["CPF"] = aluno["cpf"]
-            registro["Celular"] = aluno["telefone"]
             registro["Situacao Matricula"] = aluno["situacao_matricula"]
             registro["Situacao"] = "Inadimplente" if aluno["pendencia_financeira"] else "Adimplente"
+
+            aviso_dados = ""
+            try:
+                dados = self.ler_dados_cadastrais(ra)
+                registro["Celular"] = dados["celular"]
+                registro["CPF Responsavel"] = dados["cpf_responsavel"]
+                registro["Nome Responsavel"] = dados["nome_responsavel"]
+            except Exception as erro:  # pylint: disable=broad-except
+                if self._e_sessao_morta(erro):
+                    raise
+                # não trava o RA: segue com o telefone da lista e avisa no status
+                registro["Celular"] = aluno["telefone"]
+                aviso_dados = f" (AVISO: dados cadastrais não lidos: {erro})"
 
             parcelas = self.listar_parcelas(ra)
             boletos, erros_boleto = 0, []
@@ -276,9 +340,9 @@ class ColaboraClient:
                 registro["Status da Consulta"] = "Erro ao gerar boleto: " + "; ".join(erros_boleto)
                 self._screenshot(ra)
             elif not parcelas:
-                registro["Status da Consulta"] = "OK (nenhuma parcela encontrada)"
+                registro["Status da Consulta"] = "OK (nenhuma parcela encontrada)" + aviso_dados
             else:
-                registro["Status da Consulta"] = "OK"
+                registro["Status da Consulta"] = "OK" + aviso_dados
             return registro
 
         except Exception as erro:  # pylint: disable=broad-except

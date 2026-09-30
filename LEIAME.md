@@ -14,16 +14,17 @@ A janela fica esperando (até 15 min) você chegar no Colaboraread e só então 
 CSV ou Excel. **RA na 1ª coluna** (com ou sem cabeçalho). **Telefone é opcional**: coluna com cabeçalho Telefone/Celular/Fone/WhatsApp (ou a 2ª coluna, se não houver cabeçalho). Quando informado, **o telefone da base sempre substitui o do Colaboraread**, no relatório e na base de disparo.
 
 ## O que a automação faz para cada RA
-1. `secretaria/matricula/index.action`: busca a matrícula (nome, CPF, telefone, pendência financeira).
+1. `secretaria/matricula/index.action`: busca a matrícula (nome, CPF, pendência financeira).
+   `formmatricula.action` (Alterar Dados): Fone Celular e CPF/Nome do responsável, lidos em segundo plano.
 2. `listparcelas.action`: lê **todas** as parcelas (vencimento, situação, valor faturado).
 3. Para cada parcela com botão **Gerar boleto**, reenvia o formulário (`listboletos.action`) com a sessão do navegador, lê o PDF **em memória** e extrai a linha digitável, conferindo os dígitos verificadores. Nenhum PDF é salvo.
 
 ## Saída (pasta da execução)
 **`relatorio_meses.csv/.xlsx`**: todos os códigos do aluno até Dezembro.
-`RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado` (Junho a Dezembro; período em `config.py`).
+`RA | Nome | CPF | Telefone | CPF Responsável | Nome Responsável | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado` (Junho a Dezembro; período em `config.py`).
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, só com o **último** boleto gerado de cada aluno.
-`RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
+`RA | CPF | Nome | Telefone | CPF Responsável | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
 
 **`resultado.csv/.xlsx`**: resumo técnico por RA (Status da Consulta), usado pelo "Reprocessar erros".
 

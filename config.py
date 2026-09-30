@@ -16,6 +16,11 @@ URL_COLABORA_PARCELAS = (
     f"{URL_COLABORA_BASE}/secretaria/matricula/listparcelas.action?edmatric.ematCd={{ra}}"
 )
 URL_COLABORA_BOLETO = f"{URL_COLABORA_BASE}/secretaria/matricula/listboletos.action"
+# Tela "Alterar Dados" da matrícula: fonte do celular e do responsável financeiro
+URL_COLABORA_DADOS = (
+    f"{URL_COLABORA_BASE}/secretaria/matricula/formmatricula.action"
+    "?alteraDados=true&edmatric.ematCd={ra}&geoferta.gofeCd="
+)
 
 # Tempo máximo (segundos) que cada janela espera o usuário fazer
 # Prisma -> polo -> Portais -> Colaborar antes de desistir daquele perfil.
@@ -127,7 +132,9 @@ COLUNAS_SAIDA = [
     "Perfil",                 # qual dos perfis (janela) consultou esse RA
     "Nome",
     "CPF",
-    "Celular",
+    "Celular",               # Fone Celular da tela de dados (formmatricula)
+    "CPF Responsavel",
+    "Nome Responsavel",
     "Situacao",              # Inadimplente / Adimplente (ícone de pendência financeira)
     "Situacao Matricula",    # ex: Matricula Ativa
     "Parcelas Encontradas",

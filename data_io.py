@@ -197,7 +197,7 @@ _SUBCOLUNAS_POR_MES = ["Situacao Mensalidade", "Valor Pago", "Vencimento", "Bole
 
 # Ordem final do relatório: RA, Nome, CPF, Telefone, Situação e depois um
 # bloco fixo pra cada mês de config.MES_MINIMO_RELATORIO até MES_MAXIMO_RELATORIO.
-_COLUNAS_FIXAS_INICIO = ["RA", "Nome", "CPF", "Celular", "Situacao"]
+_COLUNAS_FIXAS_INICIO = ["RA", "Nome", "CPF", "Celular", "CPF Responsavel", "Nome Responsavel", "Situacao"]
 
 
 def _meses_fixos_relatorio() -> list:
@@ -296,7 +296,8 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
 
     df = pd.DataFrame(linhas, columns=colunas_finais)
     # cabeçalho igual ao modelo: "Situação" com acento
-    df = df.rename(columns={"Situacao": "Situação", "Celular": "Telefone"})
+    df = df.rename(columns={"Situacao": "Situação", "Celular": "Telefone",
+                            "CPF Responsavel": "CPF Responsável", "Nome Responsavel": "Nome Responsável"})
 
     caminho_csv = os.path.join(pasta_execucao, "relatorio_meses.csv")
     caminho_xlsx = os.path.join(pasta_execucao, "relatorio_meses.xlsx")
@@ -367,6 +368,8 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             "CPF": str(registro.get("CPF", "")),
             "Nome": registro.get("Nome", ""),
             "Telefone": telefone_disparo(registro.get("Celular", "")),
+            "CPF Responsável": str(registro.get("CPF Responsavel", "")),
+            "Nome Responsável": registro.get("Nome Responsavel", ""),
             "MÊS": mes,
             "Vencimento": vencimento,
             "_boleto": linha,
@@ -378,7 +381,8 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     for l in linhas:
         l[coluna_boleto] = l.pop("_boleto")
 
-    colunas = ["RA", "CPF", "Nome", "Telefone", "MÊS", "Vencimento", coluna_boleto]
+    colunas = ["RA", "CPF", "Nome", "Telefone", "CPF Responsável", "Nome Responsável",
+               "MÊS", "Vencimento", coluna_boleto]
     df = pd.DataFrame(linhas, columns=colunas)
 
     caminho_csv = os.path.join(pasta_execucao, "base_disparo.csv")
@@ -396,7 +400,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             if str(tel.value or "").isdigit() and str(tel.value).startswith("55"):
                 tel.value = int(tel.value)
                 tel.number_format = "0"
-        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 11, "F": 12, "G": 52}
+        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 16, "F": 40, "G": 11, "H": 12, "I": 52}
         for col, largura in larguras.items():
             ws.column_dimensions[col].width = largura
 
