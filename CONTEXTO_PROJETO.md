@@ -92,18 +92,19 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`relatorio_meses.csv/.xlsx`**: todos os códigos do aluno, até dezembro. Colunas, nesta ordem:
 
-`RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Boleto Gerado`
+`RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado`
 
 - Os meses vão de Junho a Dezembro; o período está em `config.MES_MINIMO_RELATORIO` e `config.MES_MAXIMO_RELATORIO`.
 - **Mês:** calculado pelo **vencimento** da parcela.
 - **Situacao Mensalidade:** o texto do Colaboraread, ou "Sem mensalidade" quando não há parcela naquele mês.
 - **Valor Pago:** o "Valor faturado", sem "R$".
+- **Vencimento:** a data da tabela de parcelas do Colaboraread (dd/mm/aaaa). Foi escolhida no lugar da data calculada pelo código de barras, que pode diferir em 1 dia (ex.: parcela 03 da Marilia: 08/09 na tabela, 09/09 no código).
 - **Situação:** Inadimplente / Adimplente / "RA não encontrado na base" / "Erro na consulta: ...".
 - Segue o padrão do `relatorio_meses` do Captura Link, com "Boleto Gerado" no lugar de "Link Pagamento". As colunas Perfil e E-mail foram excluídas.
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, baseado no modelo "Base_Links_para_Disparo". Colunas, nesta ordem:
 
-`RA | CPF | Nome | Telefone | MÊS | <Mês> - Boleto Gerado`
+`RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`
 
 - Traz só o **último código gerado** do aluno, ou seja, a parcela com boleto de vencimento mais recente.
 - Alunos sem nenhum boleto ficam de fora.

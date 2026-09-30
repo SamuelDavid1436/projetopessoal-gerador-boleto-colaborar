@@ -193,7 +193,7 @@ def salvar_resultado(registros: list, pasta_saida: str = None, momento: datetime
 
 # Sub-colunas de cada bloco de mês no relatório largo (mesmo padrão do
 # Captura Link de Pagamento, com "Boleto Gerado" no lugar de "Link Pagamento").
-_SUBCOLUNAS_POR_MES = ["Situacao Mensalidade", "Valor Pago", "Boleto Gerado"]
+_SUBCOLUNAS_POR_MES = ["Situacao Mensalidade", "Valor Pago", "Vencimento", "Boleto Gerado"]
 
 # Ordem final do relatório: RA, Nome, CPF, Telefone, Situação e depois um
 # bloco fixo pra cada mês de config.MES_MINIMO_RELATORIO até MES_MAXIMO_RELATORIO.
@@ -230,7 +230,7 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
     linha por aluno, com as colunas:
 
         RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade |
-        <Mês> - Valor Pago | <Mês> - Boleto Gerado | ... (Junho a Dezembro)
+        <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado | ... (Junho a Dezembro)
 
     - Situação: Inadimplente/Adimplente (ícone de pendência financeira no
       Colaboraread), "RA não encontrado na base" ou "Erro na consulta: ...".
@@ -238,6 +238,7 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
       - Situacao Mensalidade: texto do Colaboraread (Recebida (PIX),
         Em Aberto, Não Gerada...) ou "Sem mensalidade" se não há parcela.
       - Valor Pago: coluna "Valor faturado" do Colaboraread, sem "R$".
+      - Vencimento: data de vencimento da tabela de parcelas do Colaboraread.
       - Boleto Gerado: linha digitável (só parcelas com botão Gerar boleto).
 
     `resultados`: registros do runner, cada um com "_parcelas_relatorio"
@@ -270,11 +271,13 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
             if dados_mes is not None:
                 linha[f"{mes} - Situacao Mensalidade"] = dados_mes.get("Situacao Mensalidade", "")
                 linha[f"{mes} - Valor Pago"] = _sem_rs(dados_mes.get("Valor Faturado"))
+                linha[f"{mes} - Vencimento"] = dados_mes.get("Vencimento", "")
                 linha[f"{mes} - Boleto Gerado"] = dados_mes.get("Boleto Gerado", "")
                 algum_mes_preenchido = True
             else:
                 linha[f"{mes} - Situacao Mensalidade"] = "Sem mensalidade"
                 linha[f"{mes} - Valor Pago"] = ""
+                linha[f"{mes} - Vencimento"] = ""
                 linha[f"{mes} - Boleto Gerado"] = ""
 
         sem_situacao = not str(linha.get("Situacao", "")).strip()
@@ -318,7 +321,7 @@ def telefone_disparo(telefone) -> str:
 
 def _ultimo_boleto(registro: dict):
     """Parcela com boleto (linha digitável válida) de vencimento mais recente
-    — o "último código gerado" pro aluno. Devolve (mes, linha) ou None."""
+    — o "último código gerado" pro aluno. Devolve (mes, vencimento, linha) ou None."""
     melhor = None
     for p in registro.get("_parcelas_relatorio", []) or []:
         linha = str(p.get("Boleto Gerado") or "")
@@ -330,7 +333,7 @@ def _ultimo_boleto(registro: dict):
             continue
         if melhor is None or venc > melhor[0]:
             melhor = (venc, p.get("Competencia") or config.MESES[venc.month - 1], linha)
-    return (melhor[1], melhor[2]) if melhor else None
+    return (melhor[1], melhor[0].strftime("%d/%m/%Y"), melhor[2]) if melhor else None
 
 
 def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: datetime = None) -> tuple:
@@ -338,7 +341,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     Arquivo enxuto pra disparo (base_disparo.csv/.xlsx), no modelo
     Base_Links_para_Disparo, uma linha por aluno que tem boleto:
 
-        RA | CPF | Nome | Telefone | MÊS | <Mês> - Boleto Gerado
+        RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
 
     - Traz só o ÚLTIMO código gerado (parcela com boleto de vencimento mais
       recente). Alunos sem nenhum boleto ficam de fora.
@@ -358,13 +361,14 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
         ultimo = _ultimo_boleto(registro)
         if not ultimo:
             continue
-        mes, linha = ultimo
+        mes, vencimento, linha = ultimo
         linhas.append({
             "RA": str(registro.get("RA", "")),
             "CPF": str(registro.get("CPF", "")),
             "Nome": registro.get("Nome", ""),
             "Telefone": telefone_disparo(registro.get("Celular", "")),
             "MÊS": mes,
+            "Vencimento": vencimento,
             "_boleto": linha,
         })
 
@@ -374,7 +378,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     for l in linhas:
         l[coluna_boleto] = l.pop("_boleto")
 
-    colunas = ["RA", "CPF", "Nome", "Telefone", "MÊS", coluna_boleto]
+    colunas = ["RA", "CPF", "Nome", "Telefone", "MÊS", "Vencimento", coluna_boleto]
     df = pd.DataFrame(linhas, columns=colunas)
 
     caminho_csv = os.path.join(pasta_execucao, "base_disparo.csv")
@@ -392,7 +396,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             if str(tel.value or "").isdigit() and str(tel.value).startswith("55"):
                 tel.value = int(tel.value)
                 tel.number_format = "0"
-        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 11, "F": 52}
+        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 11, "F": 12, "G": 52}
         for col, largura in larguras.items():
             ws.column_dimensions[col].width = largura
 
