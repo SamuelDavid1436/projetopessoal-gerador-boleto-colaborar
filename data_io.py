@@ -63,7 +63,7 @@ def extrair_ras_com_erro(caminho_resultado_csv: str) -> list:
     return ras_com_erro
 
 
-def salvar_lista_ras(ras: list, caminho_destino: str, telefones: dict = None, polos: dict = None):
+def salvar_lista_ras(ras: list, caminho_destino: str, telefones: dict = None):
     """Salva uma lista simples de RAs num .csv (uma coluna, com cabeçalho
     'RA') — usado pra gerar a base de reprocessamento de erros. Sem BOM
     (utf-8 puro): com BOM, o cabeçalho "RA" vira "\\ufeffRA" e o filtro de
@@ -72,8 +72,6 @@ def salvar_lista_ras(ras: list, caminho_destino: str, telefones: dict = None, po
     df = pd.DataFrame({"RA": ras})
     if telefones:  # preserva o telefone informado pelo usuário na base original
         df["Telefone"] = [telefones.get(ra, "") for ra in ras]
-    if polos:  # preserva o polo de cada RA pro reprocessamento entrar no polo certo
-        df["POLO"] = [polos.get(ra, "") for ra in ras]
     df.to_csv(caminho_destino, index=False, encoding="utf-8")
 
 
@@ -111,39 +109,6 @@ def ler_lista_ras(caminho_arquivo: str) -> list:
     ras = [ra for ra in primeira_coluna.tolist() if ra and ra.upper() not in ("RA", "MATRICULA", "MATRÍCULA")]
 
     return ras
-
-
-def ler_polos_base(caminho_arquivo: str) -> dict:
-    """
-    Polo de cada RA (modo automático). A coluna é reconhecida pelo CABEÇALHO
-    "POLO" (RA continua sendo a 1ª coluna). O texto deve ser exatamente o
-    nome que aparece na lista de polos do Prisma, ex.:
-    "GUARULHOS/SP - I(17111257)A". Sem coluna POLO devolve {} e o programa
-    funciona no modo manual de sempre. Devolve {ra: polo}.
-    """
-    extensao = os.path.splitext(caminho_arquivo)[1].lower()
-    if extensao == ".csv":
-        separador = _detectar_separador_csv(caminho_arquivo)
-        if separador is None:
-            return {}
-        df = pd.read_csv(caminho_arquivo, sep=separador, engine="python", header=None, dtype=str)
-    elif extensao in (".xlsx", ".xls"):
-        df = pd.read_excel(caminho_arquivo, header=None, dtype=str)
-    else:
-        return {}
-    if df.shape[1] < 2 or df.empty:
-        return {}
-    cabecalho = [str(v or "").strip().upper() for v in df.iloc[0].tolist()]
-    idx = next((i for i, c in enumerate(cabecalho) if c == "POLO" or c.startswith("POLO ")), None)
-    if idx is None:
-        return {}
-    polos = {}
-    for _, linha in df.iloc[1:].iterrows():
-        ra = str(linha.iloc[0] or "").strip()
-        polo = linha.iloc[idx]
-        if ra and ra.lower() != "nan":
-            polos[ra] = str(polo).strip() if pd.notna(polo) else ""
-    return polos
 
 
 _NOMES_COLUNA_TELEFONE = ("TELEFONE", "CELULAR", "FONE", "WHATSAPP", "WHATS", "CONTATO")
@@ -263,7 +228,7 @@ _SUBCOLUNAS_POR_MES = ["Situacao Mensalidade", "Valor Pago", "Vencimento", "Bole
 
 # Ordem final do relatório: RA, Nome, CPF, Telefone, Situação e depois um
 # bloco fixo pra cada mês de config.MES_MINIMO_RELATORIO até MES_MAXIMO_RELATORIO.
-_COLUNAS_FIXAS_INICIO = ["RA", "Polo", "Nome", "CPF", "Celular", "Situacao"]
+_COLUNAS_FIXAS_INICIO = ["RA", "Nome", "CPF", "Celular", "Situacao"]
 
 
 def _meses_fixos_relatorio() -> list:
@@ -295,7 +260,7 @@ def salvar_relatorio_meses(resultados: list, pasta_saida: str = None, momento: d
     Gera o relatorio_meses.csv/.xlsx (o arquivo que o usuário recebe), uma
     linha por aluno, com as colunas:
 
-        RA | Polo | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade |
+        RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade |
         <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado | ... (Junho a Dezembro)
 
     - Situação: Inadimplente/Adimplente (ícone de pendência financeira no
@@ -410,7 +375,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     Arquivo enxuto pra disparo (base_disparo.csv/.xlsx), no modelo
     Base_Links_para_Disparo, uma linha por aluno que tem boleto:
 
-        RA | Polo | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
+        RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
 
     - CPF e Nome: os da tela "Alterar Dados" (CPF/nome do responsável, mesma
       origem do celular). Sem colunas duplicadas.
@@ -436,7 +401,6 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
         mes, vencimento, linha = ultimo
         linhas.append({
             "RA": str(registro.get("RA", "")),
-            "Polo": registro.get("Polo", ""),
             "CPF": cpf_final(registro),  # responsável (tela Alterar Dados); reserva: CPF do aluno
             "Nome": nome_final(registro),  # responsável (tela Alterar Dados); reserva: nome do aluno
             "Telefone": telefone_disparo(registro.get("Celular", "")),
@@ -451,7 +415,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     for l in linhas:
         l[coluna_boleto] = l.pop("_boleto")
 
-    colunas = ["RA", "Polo", "CPF", "Nome", "Telefone",
+    colunas = ["RA", "CPF", "Nome", "Telefone",
                "MÊS", "Vencimento", coluna_boleto]
     df = pd.DataFrame(linhas, columns=colunas)
 
@@ -466,11 +430,11 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
         for row in ws.iter_rows(min_row=2):
             for cell in row:
                 cell.number_format = "@"
-            tel = row[4]  # Telefone como número, igual ao modelo (formato "0")
+            tel = row[3]  # Telefone como número, igual ao modelo (formato "0")
             if str(tel.value or "").isdigit() and str(tel.value).startswith("55"):
                 tel.value = int(tel.value)
                 tel.number_format = "0"
-        larguras = {"A": 13, "B": 34, "C": 14, "D": 46, "E": 16, "F": 11, "G": 12, "H": 52}
+        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 11, "F": 12, "G": 52}
         for col, largura in larguras.items():
             ws.column_dimensions[col].width = largura
 

@@ -143,8 +143,6 @@ class PaginaExecucoes(ctk.CTkFrame):
             ras = data_io.ler_lista_ras(self.caminho_arquivo_ras)
             # telefone informado na base (opcional) sempre vence o do Colaboraread
             self.controlador.telefones_base = data_io.ler_telefones_base(self.caminho_arquivo_ras)
-            # polo por RA (opcional): com coluna POLO a automação entra sozinha em cada polo
-            self.controlador.polos_base = data_io.ler_polos_base(self.caminho_arquivo_ras)
         except Exception as erro:  # pylint: disable=broad-except
             messagebox.showerror("Erro ao ler arquivo", str(erro))
             return

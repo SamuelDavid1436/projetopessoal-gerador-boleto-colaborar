@@ -21,10 +21,10 @@ CSV ou Excel. **RA na 1ª coluna** (com ou sem cabeçalho). **Telefone é opcion
 
 ## Saída (pasta da execução)
 **`relatorio_meses.csv/.xlsx`**: todos os códigos do aluno até Dezembro.
-`RA | Polo | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado` (Junho a Dezembro; período em `config.py`).
+`RA | Nome | CPF | Telefone | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado` (Junho a Dezembro; período em `config.py`).
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, só com o **último** boleto gerado de cada aluno.
-`RA | Polo | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
+`RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
 
 **`resultado.csv/.xlsx`**: resumo técnico por RA (Status da Consulta), usado pelo "Reprocessar erros".
 
@@ -48,13 +48,3 @@ Teste rápido de um RA, sem interface: `python teste_colabora.py 3771580906`.
 Dados e perfis ficam em pastas próprias (`Documentos\CapturaBoletoColabora` e `%LOCALAPPDATA%\CapturaBoletoColabora`), separadas do Captura Link.
 
 **Backup automático:** a cada RA processado o resultado é gravado em `saida\<data-hora>\backup_parcial.csv` (com flush no disco) e num log de retomada. Se o PC desligar, o CSV já tem tudo até ali e, ao reabrir, o programa oferece recuperar e gerar os arquivos finais. Em execução normal o backup é apagado ao final.
-
-## Modo automático por polo (base com coluna POLO)
-
-- Base: `RA` na 1ª coluna e uma coluna com cabeçalho **POLO** (texto exato da lista do Prisma, ex.: `GUARULHOS/SP - I(17111257)A`; o código, ex. `17111257`, também serve). Telefone continua opcional. Sem coluna POLO, vale o modo manual de sempre.
-- O usuário faz o **login manual uma vez** (botão "Login manual"). Depois o perfil do Chrome guarda a sessão.
-- Para cada polo, a janela faz: abre `prisma.kroton.com.br/login` → clica **ACESSAR** → espera `/home` → escolhe o polo na lista ("Selecione outro polo") e confirma → abre direto `extranet.colaboraread.com.br/index/index` → segue o fluxo normal. Se o login não concluir sozinho (sessão vencida/senha não salva), avisa no log e espera o login manual na janela.
-- **Um polo de cada vez:** os polos são ordenados (alfabético) e o log mostra `Rodando POLO X (n RAs) — polo i de N`. Todas as janelas trabalham juntas nos RAs do polo atual (fila compartilhada) e só quando o último RA do polo termina passa para o próximo. Nunca alterna entre polos. RA sem polo na base vira erro sem travar os demais.
-- Erros: RA sem polo na base, polo que não existe na lista do usuário (o log mostra os disponíveis) ou seleção não confirmada viram `Erro: ...` no `resultado` (coluna **Polo** nova) e entram no "Reprocessar erros" (que preserva a coluna POLO). Se a seleção do polo falhar, salva um print em `logs\screenshots`.
-- Implementação: `colaboraread_client.entrar_no_polo`, `runner._worker` (param `polo_por_ra`), `data_io.ler_polos_base`.
-- **Ainda não validado no site real** (seletores do `/login` e da `/home` vieram do HTML informado pelo usuário).
