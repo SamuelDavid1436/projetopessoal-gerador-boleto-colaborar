@@ -96,9 +96,24 @@ def carregar_pendente() -> dict:
     return _carregar_bruto()
 
 
+def _carregar_legado():
+    """Log de retomada no formato antigo (.json único), deixado por versões
+    anteriores do programa — ainda é recuperável."""
+    try:
+        with open(config.ARQUIVO_RETOMADA, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        if isinstance(dados, dict) and isinstance(dados.get("resultados"), list):
+            return {"iniciado_em": dados.get("iniciado_em", "?"),
+                    "total_ras": dados.get("total_ras", "?"),
+                    "resultados": dados["resultados"]}
+    except (OSError, json.JSONDecodeError):
+        pass
+    return None
+
+
 def _carregar_bruto():
     if not os.path.isfile(_ARQUIVO):
-        return None
+        return _carregar_legado() if os.path.isfile(config.ARQUIVO_RETOMADA) else None
     dados = {"iniciado_em": "?", "total_ras": "?", "resultados": []}
     try:
         with open(_ARQUIVO, "r", encoding="utf-8") as f:
