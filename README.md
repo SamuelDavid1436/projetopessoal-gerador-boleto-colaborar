@@ -48,3 +48,13 @@ Teste rápido de um RA, sem interface: `python teste_colabora.py 3771580906`.
 Dados e perfis ficam em pastas próprias (`Documentos\CapturaBoletoColabora` e `%LOCALAPPDATA%\CapturaBoletoColabora`), separadas do Captura Link.
 
 **Backup automático:** a cada RA processado o resultado é gravado em `saida\<data-hora>\backup_parcial.csv` (com flush no disco) e num log de retomada. Se o PC desligar, o CSV já tem tudo até ali e, ao reabrir, o programa oferece recuperar e gerar os arquivos finais. Em execução normal o backup é apagado ao final.
+
+## Modo automático por polo (base com coluna POLO)
+
+- Base: `RA` na 1ª coluna e uma coluna com cabeçalho **POLO** (texto exato da lista do Prisma, ex.: `GUARULHOS/SP - I(17111257)A`; o código, ex. `17111257`, também serve). Telefone continua opcional. Sem coluna POLO, vale o modo manual de sempre.
+- O usuário faz o **login manual uma vez** (botão "Login manual"). Depois o perfil do Chrome guarda a sessão.
+- Para cada polo, a janela faz: abre `prisma.kroton.com.br/login` → clica **ACESSAR** → espera `/home` → escolhe o polo na lista ("Selecione outro polo") e confirma → abre direto `extranet.colaboraread.com.br/index/index` → segue o fluxo normal. Se o login não concluir sozinho (sessão vencida/senha não salva), avisa no log e espera o login manual na janela.
+- Os RAs são agrupados por polo e divididos em pedaços consecutivos entre as janelas (cada janela troca de polo o mínimo possível).
+- Erros: RA sem polo na base, polo que não existe na lista do usuário (o log mostra os disponíveis) ou seleção não confirmada viram `Erro: ...` no `resultado` (coluna **Polo** nova) e entram no "Reprocessar erros" (que preserva a coluna POLO). Se a seleção do polo falhar, salva um print em `logs\screenshots`.
+- Implementação: `colaboraread_client.entrar_no_polo`, `runner._worker` (param `polo_por_ra`), `data_io.ler_polos_base`.
+- **Ainda não validado no site real** (seletores do `/login` e da `/home` vieram do HTML informado pelo usuário).

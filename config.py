@@ -9,8 +9,11 @@ Todas as configurações "ajustáveis" do projeto ficam aqui, separadas da lógi
 # URLs — Prisma (acesso manual do usuário) e Colaboraread (automação)
 # ---------------------------------------------------------------------------
 URL_PRISMA = "https://prisma.kroton.com.br/"   # /home quebra quando não está logado
+URL_PRISMA_LOGIN = "https://prisma.kroton.com.br/login"   # tela com o botão ACESSAR
+DOMINIO_PRISMA = "prisma.kroton.com.br"
 DOMINIO_COLABORA = "extranet.colaboraread.com.br"
 URL_COLABORA_BASE = f"https://{DOMINIO_COLABORA}"
+URL_COLABORA_INDEX = f"{URL_COLABORA_BASE}/index/index"
 URL_COLABORA_MATRICULA = f"{URL_COLABORA_BASE}/secretaria/matricula/index.action"
 URL_COLABORA_PARCELAS = (
     f"{URL_COLABORA_BASE}/secretaria/matricula/listparcelas.action?edmatric.ematCd={{ra}}"
@@ -153,6 +156,7 @@ ANO_MAXIMO_RELATORIO = "2026"
 COLUNAS_SAIDA = [
     "RA",
     "Perfil",                 # qual dos perfis (janela) consultou esse RA
+    "Polo",                   # polo informado na base (modo automático); vazio no modo manual
     "Nome",
     "CPF",
     "Celular",               # Fone Celular da tela de dados (formmatricula)
@@ -172,6 +176,11 @@ COLUNAS_ARQUIVO_RESULTADO = [c for c in COLUNAS_SAIDA if c not in ("CPF Responsa
 # Quantas vezes tentar ler os dados cadastrais (celular, nome e CPF) do MESMO
 # aluno antes de desistir e usar os dados de reserva.
 TENTATIVAS_DADOS_CADASTRAIS = 3
+
+# Entrada automática (base com coluna POLO): tempos em segundos
+TEMPO_LOGIN_AUTOMATICO = 25      # espera o /home depois de clicar em ACESSAR; passou disso, pede login manual
+TEMPO_ESPERA_POLO = 40           # espera a lista de polos aparecer na /home
+TENTATIVAS_SELECAO_POLO = 3      # quantas vezes tenta selecionar e confirmar o polo
 
 # Tempo máximo de espera (segundos) por elemento na página
 TIMEOUT_PADRAO = 25

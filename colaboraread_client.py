@@ -42,7 +42,7 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
 import config
 
@@ -450,3 +450,181 @@ def aguardar_colaborar(driver, evento_parar, log=print, tempo_limite=900) -> boo
         time.sleep(2)
     log(f"tempo esgotado ({tempo_limite // 60} min) esperando o acesso ao Colaborar.")
     return False
+
+
+# ===========================================================================
+# Entrada automática: Prisma (login) -> polo -> Colaborar
+# Usada quando a base tem a coluna POLO. O usuário faz o login manual UMA vez
+# (botão "Login manual"); depois o perfil do Chrome guarda a sessão e aqui
+# tudo é feito sozinho.
+# ===========================================================================
+def _norm(texto) -> str:
+    return re.sub(r"\s+", " ", str(texto or "")).strip().casefold()
+
+
+def _parou(evento_parar) -> bool:
+    return evento_parar is not None and evento_parar.is_set()
+
+
+def _url(driver) -> str:
+    try:
+        return (driver.current_url or "").lower()
+    except WebDriverException:
+        return ""
+
+
+def _na_home_do_prisma(driver) -> bool:
+    u = _url(driver)
+    return config.DOMINIO_PRISMA in u and "/home" in u
+
+
+def _logar_no_prisma(driver, evento_parar, log, tempo_limite) -> bool:
+    """Abre /login, clica em ACESSAR e espera chegar na /home. Se o login não
+    concluir sozinho (sessão vencida, senha não salva no Chrome), avisa e
+    continua esperando o usuário logar manualmente nessa janela."""
+    driver.get(config.URL_PRISMA_LOGIN)
+    fim = time.time() + tempo_limite
+    clicou_em = None
+    avisou = False
+    while time.time() < fim:
+        if _parou(evento_parar):
+            return False
+        if _na_home_do_prisma(driver):
+            return True
+        botoes = driver.find_elements(By.ID, "acessar")
+        if botoes and clicou_em is None:
+            time.sleep(2)  # dá tempo do Chrome preencher o que estiver salvo
+            try:
+                botoes[0].click()
+                clicou_em = time.time()
+                log("clicando em ACESSAR no Prisma...")
+            except WebDriverException:
+                pass
+        elif clicou_em is not None and time.time() - clicou_em > config.TEMPO_LOGIN_AUTOMATICO and not avisou:
+            avisou = True
+            log("o login não concluiu sozinho (sessão vencida?) — faça o login manualmente "
+                "nesta janela; eu continuo quando chegar na tela inicial do Prisma.")
+        time.sleep(1)
+    log("tempo esgotado esperando o login no Prisma.")
+    return False
+
+
+def _opcoes_de_polo(select_el):
+    opcoes = []
+    for o in select_el.find_elements(By.TAG_NAME, "option"):
+        valor = (o.get_attribute("value") or "").strip()
+        if valor and valor != "0":
+            opcoes.append((valor, o.text.strip()))
+    return opcoes
+
+
+def _achar_polo(polo, opcoes):
+    """Acha o polo pedido: texto exato (ignora maiúsculas/espaços) ou só o código."""
+    alvo = _norm(polo)
+    for valor, texto in opcoes:
+        if _norm(texto) == alvo:
+            return valor, texto
+    for valor, texto in opcoes:
+        if _norm(valor) == alvo:
+            return valor, texto
+    return None
+
+
+def _polo_confirmado(driver, valor, texto) -> bool:
+    """Confere se o polo ficou selecionado: ou a própria lista mostra esse
+    polo como escolhido, ou o código dele aparece na tela fora da lista."""
+    try:
+        for sel in driver.find_elements(By.XPATH, "//select[option[normalize-space()='Selecione outro polo']]"):
+            if (Select(sel).first_selected_option.get_attribute("value") or "") == valor:
+                return True
+    except WebDriverException:
+        pass
+    try:
+        fora = driver.execute_script(
+            "var c=document.body.cloneNode(true);"
+            "c.querySelectorAll('select,script,style').forEach(function(e){e.remove();});"
+            "return c.textContent||'';")
+        fora = _norm(fora)
+        return valor in fora or (_norm(texto) in fora)
+    except WebDriverException:
+        return False
+
+
+def _selecionar_polo(driver, polo, evento_parar, log):
+    """Devolve (True, "") se o polo foi selecionado e confirmado; senão (False, motivo)."""
+    xpath = "//select[option[normalize-space()='Selecione outro polo']]"
+    fim = time.time() + config.TEMPO_ESPERA_POLO
+    select_el = None
+    while time.time() < fim and not _parou(evento_parar):
+        achados = [e for e in driver.find_elements(By.XPATH, xpath) if e.is_displayed()]
+        if achados:
+            select_el = achados[0]
+            break
+        time.sleep(1)
+    if select_el is None:
+        return False, "lista de polos não apareceu na tela inicial do Prisma"
+
+    opcoes = _opcoes_de_polo(select_el)
+    achado = _achar_polo(polo, opcoes)
+    if not achado:
+        disponiveis = "; ".join(t for _, t in opcoes) or "nenhum"
+        return False, f"polo '{polo}' não está disponível para este usuário. Disponíveis: {disponiveis}"
+    valor, texto = achado
+
+    for tentativa in range(1, config.TENTATIVAS_SELECAO_POLO + 1):
+        if _parou(evento_parar):
+            return False, "interrompido"
+        try:
+            achados = [e for e in driver.find_elements(By.XPATH, xpath) if e.is_displayed()]
+            if not achados:
+                return False, "lista de polos sumiu da tela"
+            Select(achados[0]).select_by_value(valor)
+        except WebDriverException as erro:
+            log(f"não consegui selecionar o polo (tentativa {tentativa}): {erro.msg or erro}")
+            time.sleep(2)
+            continue
+        time.sleep(4)  # a tela costuma recarregar/atualizar depois da troca
+        if _polo_confirmado(driver, valor, texto):
+            log(f"polo selecionado: {texto}")
+            return True, ""
+        log(f"polo ainda não confirmado (tentativa {tentativa}/{config.TENTATIVAS_SELECAO_POLO})...")
+    return False, f"não consegui confirmar a seleção do polo '{texto}'"
+
+
+def entrar_no_polo(driver, polo, evento_parar, log=print, tempo_login=900):
+    """
+    Fluxo completo e automático: Prisma /login -> ACESSAR -> /home -> escolhe
+    o POLO -> abre o Colaborar (extranet) direto pela URL.
+    Devolve (True, "") quando o Colaboraread abriu; senão (False, motivo).
+    """
+    polo = str(polo or "").strip()
+    if not polo:
+        return False, "polo não informado"
+    log(f"entrando no polo: {polo}")
+    try:
+        if not _logar_no_prisma(driver, evento_parar, log, tempo_login):
+            return False, "não consegui entrar no Prisma"
+        time.sleep(2)
+        ok, motivo = _selecionar_polo(driver, polo, evento_parar, log)
+        if not ok:
+            try:
+                os.makedirs(config.PASTA_SCREENSHOTS, exist_ok=True)
+                driver.save_screenshot(os.path.join(
+                    config.PASTA_SCREENSHOTS, f"{datetime.now():%Y-%m-%d_%H-%M-%S}_POLO.png"))
+            except Exception:  # pylint: disable=broad-except
+                pass
+            return False, motivo
+        driver.get(config.URL_COLABORA_INDEX)
+        fim = time.time() + 30
+        while time.time() < fim and config.DOMINIO_COLABORA not in _url(driver):
+            if _parou(evento_parar):
+                return False, "interrompido"
+            time.sleep(1)
+        if ColaboraClient(driver, log=log).sessao_ativa():
+            log("Colaboraread aberto — começando.")
+            return True, ""
+        return False, "o Colaboraread não abriu depois de escolher o polo"
+    except WebDriverException as erro:
+        if any(t in str(erro).lower() for t in _ERROS_SESSAO_MORTA):
+            raise
+        return False, f"erro no navegador: {erro.msg or erro}"

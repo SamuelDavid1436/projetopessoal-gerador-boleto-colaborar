@@ -74,6 +74,7 @@ class App(ctk.CTk):
         self.ras_em_processamento = {}  # apelido do perfil -> RA que está processando agora
         self.inicio_execucao_dt = None  # datetime de início da execução atual (pra calcular previsão de término)
         self.apelidos_execucao_atual = []  # perfis usados na execução atual
+        self.polos_base = {}  # {RA: polo} da coluna POLO da base (vazio = modo manual)
         self.telefones_base = {}  # {RA: telefone} informado na base importada (tem prioridade)
         self._lock_progresso = threading.Lock()
         self._fila_log = queue.Queue()
@@ -365,7 +366,8 @@ class App(ctk.CTk):
 
         carimbo = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         caminho_novo = os.path.join(config.PASTA_LOGS, "reprocessamentos", f"erros_{carimbo}.csv")
-        data_io.salvar_lista_ras(ras_com_erro, caminho_novo, telefones=self.telefones_base)
+        data_io.salvar_lista_ras(ras_com_erro, caminho_novo, telefones=self.telefones_base,
+                                 polos=self.polos_base)
 
         self.mostrar_pagina("Execuções")
         pagina = self.paginas["Execuções"]
@@ -427,8 +429,9 @@ class App(ctk.CTk):
         self._log(
             f"Iniciando execução: {len(ras)} RA(s), perfis: {', '.join(apelidos_usados)}. "
             + (f"{len(self.telefones_base)} telefone(s) vindos da base (têm prioridade). " if self.telefones_base else "")
-            + 
-            "Cada janela vai esperar você entrar no Colaborar (Prisma -> polo -> Portais -> Colaborar)."
+            + (f"Modo automático: {len(set(self.polos_base.values()))} polo(s) na base — cada janela entra sozinha no "
+               "polo de cada RA (Prisma -> polo -> Colaborar). " if self.polos_base else
+               "Cada janela vai esperar você entrar no Colaborar (Prisma -> polo -> Portais -> Colaborar).")
         )
         self.mostrar_pagina("Execuções")
 
@@ -491,6 +494,7 @@ class App(ctk.CTk):
                 log_callback=self._log, progresso_callback=self._callback_progresso,
                 inicio_ra_callback=self._callback_inicio_ra,
                 evento_parar=self.evento_parar,
+                polos=self.polos_base,
             )
             if self.evento_parar.is_set():
                 status_final = "Interrompido"
