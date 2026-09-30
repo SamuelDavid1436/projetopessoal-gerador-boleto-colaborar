@@ -24,7 +24,7 @@ CSV ou Excel. **RA na 1ª coluna** (com ou sem cabeçalho). **Telefone é opcion
 `RA | Nome | CPF | Telefone | CPF Responsável | Nome Responsável | Situação | <Mês> - Situacao Mensalidade | <Mês> - Valor Pago | <Mês> - Vencimento | <Mês> - Boleto Gerado` (Junho a Dezembro; período em `config.py`).
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, só com o **último** boleto gerado de cada aluno.
-`RA | CPF | Nome | Telefone | CPF Responsável | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
+`RA | CPF | Nome | Telefone | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`. Alunos sem boleto ficam de fora.
 
 **`resultado.csv/.xlsx`**: resumo técnico por RA (Status da Consulta), usado pelo "Reprocessar erros".
 
@@ -46,3 +46,5 @@ Teste rápido de um RA, sem interface: `python teste_colabora.py 3771580906`.
 `build_exe.bat` (Windows), que gera `dist\CapturaBoletoColabora.exe`. Veja `LEIAME_EMPACOTAMENTO.md`.
 
 Dados e perfis ficam em pastas próprias (`Documentos\CapturaBoletoColabora` e `%LOCALAPPDATA%\CapturaBoletoColabora`), separadas do Captura Link.
+
+**Backup automático:** a cada RA processado o resultado é gravado em `saida\<data-hora>\backup_parcial.csv` (com flush no disco) e num log de retomada. Se o PC desligar, o CSV já tem tudo até ali e, ao reabrir, o programa oferece recuperar e gerar os arquivos finais. Em execução normal o backup é apagado ao final.

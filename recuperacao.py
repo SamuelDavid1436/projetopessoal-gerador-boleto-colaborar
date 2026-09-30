@@ -22,6 +22,24 @@ from datetime import datetime
 
 import config
 
+# Formato "uma linha JSON por evento" (.jsonl): a 1ª linha é o cabeçalho do
+# ciclo e cada RA concluído vira UMA linha nova acrescentada no fim, com
+# flush + fsync. Assim o custo não cresce com o tamanho da base e, se a luz
+# cair no meio de uma gravação, só a última linha (incompleta) se perde —
+# todas as anteriores continuam válidas.
+_ARQUIVO = os.path.splitext(config.ARQUIVO_RETOMADA)[0] + ".jsonl"
+
+
+def _anexar(obj: dict, novo_arquivo: bool = False):
+    try:
+        os.makedirs(os.path.dirname(_ARQUIVO), exist_ok=True)
+        with open(_ARQUIVO, "w" if novo_arquivo else "a", encoding="utf-8") as f:
+            f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+    except OSError:
+        pass
+
 
 def iniciar_novo_ciclo(total_ras: int):
     """
@@ -29,22 +47,17 @@ def iniciar_novo_ciclo(total_ras: int):
     "Importar"). Descarta qualquer log de retomada anterior (de uma
     execução passada, terminada ou não) e começa um arquivo novo do zero.
     """
-    os.makedirs(config.PASTA_LOGS, exist_ok=True)
-    dados = {
+    _anexar({
         "iniciado_em": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         "total_ras": total_ras,
-        "resultados": [],
-    }
-    _salvar(dados)
+    }, novo_arquivo=True)
 
 
 def registrar_resultado(registro: dict):
     """Acrescenta mais um resultado já concluído ao log de retomada."""
-    dados = _carregar_bruto()
-    if dados is None:
+    if not os.path.isfile(_ARQUIVO):
         return  # não tem ciclo iniciado (ex: log já foi descartado) — ignora
-    dados["resultados"].append(registro)
-    _salvar(dados)
+    _anexar({"resultado": registro})
 
 
 def finalizar_ciclo():
@@ -59,11 +72,12 @@ def finalizar_ciclo():
 
 def descartar():
     """Apaga o log de retomada, se existir."""
-    try:
-        if os.path.isfile(config.ARQUIVO_RETOMADA):
-            os.remove(config.ARQUIVO_RETOMADA)
-    except OSError:
-        pass
+    for caminho in (_ARQUIVO, config.ARQUIVO_RETOMADA):  # o .json é o formato antigo
+        try:
+            if os.path.isfile(caminho):
+                os.remove(caminho)
+        except OSError:
+            pass
 
 
 def existe_execucao_pendente() -> bool:
@@ -83,18 +97,24 @@ def carregar_pendente() -> dict:
 
 
 def _carregar_bruto():
-    if not os.path.isfile(config.ARQUIVO_RETOMADA):
+    if not os.path.isfile(_ARQUIVO):
         return None
+    dados = {"iniciado_em": "?", "total_ras": "?", "resultados": []}
     try:
-        with open(config.ARQUIVO_RETOMADA, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return None
-
-
-def _salvar(dados: dict):
-    try:
-        with open(config.ARQUIVO_RETOMADA, "w", encoding="utf-8") as f:
-            json.dump(dados, f, ensure_ascii=False, indent=2)
+        with open(_ARQUIVO, "r", encoding="utf-8") as f:
+            for n, linha in enumerate(f):
+                linha = linha.strip()
+                if not linha:
+                    continue
+                try:
+                    obj = json.loads(linha)
+                except json.JSONDecodeError:
+                    continue  # linha cortada pela queda — ignora só ela
+                if n == 0 and "iniciado_em" in obj:
+                    dados["iniciado_em"] = obj.get("iniciado_em", "?")
+                    dados["total_ras"] = obj.get("total_ras", "?")
+                elif "resultado" in obj:
+                    dados["resultados"].append(obj["resultado"])
     except OSError:
-        pass
+        return None
+    return dados

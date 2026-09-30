@@ -111,7 +111,7 @@ Os arquivos ficam em `Documentos\CapturaBoletoColabora\saida\<data-hora>\`.
 
 **`base_disparo.csv/.xlsx`**: arquivo enxuto para disparo, baseado no modelo "Base_Links_para_Disparo". Colunas, nesta ordem:
 
-`RA | CPF | Nome | Telefone | CPF Responsável | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`
+`RA | CPF | Nome | Telefone | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado`
 
 - Traz só o **último código gerado** do aluno, ou seja, a parcela com boleto de vencimento mais recente.
 - Alunos sem nenhum boleto ficam de fora.

@@ -112,6 +112,7 @@ class App(ctk.CTk):
             self._log(f"Resultados recuperados de uma execução interrompida: {len(resultados)} registro(s).")
             self._log(f"Arquivo CSV: {caminho_csv}")
             self._log(f"Arquivo Excel: {caminho_xlsx}")
+            data_io.remover_backup_parcial(momento=momento)
             try:
                 data_io.salvar_relatorio_meses(resultados, momento=momento)
                 data_io.salvar_base_disparo(resultados, momento=momento)
@@ -412,6 +413,8 @@ class App(ctk.CTk):
         self.inicio_execucao_dt = datetime.now()
         self.apelidos_execucao_atual = [perfis.obter_apelido(pid) for pid in perfis_selecionados]
 
+        self._log(f"Backup automático: a cada RA o resultado é gravado em "
+                  f"{os.path.join(config.PASTA_SAIDA, self.inicio_execucao_dt.strftime('%Y-%m-%d_%H-%M-%S'), data_io.NOME_BACKUP_PARCIAL)}")
         # começa um ciclo novo do zero — descarta automaticamente qualquer
         # log de retomada de uma execução anterior (mesmo que não tenha
         # terminado). Cada execução é sempre uma "fotografia" só da base
@@ -459,6 +462,8 @@ class App(ctk.CTk):
             else:
                 self.contagem_erro += 1
         recuperacao.registrar_resultado(registro)
+        # backup visível (CSV na pasta da execução), gravado a cada RA
+        data_io.gravar_backup_linha(registro, momento=self.inicio_execucao_dt)
 
     def _mostrar_conclusao(self, total_registros: int, pasta_saida: str):
         """Mensagem de conclusão simples (sem caminhos de arquivo longos/feios
@@ -492,6 +497,7 @@ class App(ctk.CTk):
                 caminho_csv, caminho_xlsx = data_io.salvar_resultado(resultados, momento=self.inicio_execucao_dt)
                 self._log(f"Arquivo CSV: {caminho_csv}")
                 self._log(f"Arquivo Excel: {caminho_xlsx}")
+                data_io.remover_backup_parcial(momento=self.inicio_execucao_dt)  # finais gravados: backup não serve mais
                 try:
                     caminho_relatorio_csv, _ = data_io.salvar_relatorio_meses(
                         resultados, momento=self.inicio_execucao_dt

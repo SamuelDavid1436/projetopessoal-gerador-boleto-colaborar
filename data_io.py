@@ -14,6 +14,9 @@ import pandas as pd
 import config
 
 
+NOME_BACKUP_PARCIAL = "backup_parcial.csv"
+
+
 def _detectar_separador_csv(caminho_arquivo: str):
     """
     Detecta o separador de um .csv de forma confiável. NÃO usa o
@@ -342,7 +345,9 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     Arquivo enxuto pra disparo (base_disparo.csv/.xlsx), no modelo
     Base_Links_para_Disparo, uma linha por aluno que tem boleto:
 
-        RA | CPF | Nome | Telefone | MÊS | Vencimento | <Mês> - Boleto Gerado
+        RA | CPF | Nome | Telefone | Nome Responsável | MÊS | Vencimento | <Mês> - Boleto Gerado
+
+    - CPF: o da tela "Alterar Dados" (CPF do responsável, mesma origem do celular).
 
     - Traz só o ÚLTIMO código gerado (parcela com boleto de vencimento mais
       recente). Alunos sem nenhum boleto ficam de fora.
@@ -365,10 +370,9 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
         mes, vencimento, linha = ultimo
         linhas.append({
             "RA": str(registro.get("RA", "")),
-            "CPF": str(registro.get("CPF", "")),
+            "CPF": str(registro.get("CPF Responsavel", "")),  # só o da tela Alterar Dados
             "Nome": registro.get("Nome", ""),
             "Telefone": telefone_disparo(registro.get("Celular", "")),
-            "CPF Responsável": str(registro.get("CPF Responsavel", "")),
             "Nome Responsável": registro.get("Nome Responsavel", ""),
             "MÊS": mes,
             "Vencimento": vencimento,
@@ -381,7 +385,7 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
     for l in linhas:
         l[coluna_boleto] = l.pop("_boleto")
 
-    colunas = ["RA", "CPF", "Nome", "Telefone", "CPF Responsável", "Nome Responsável",
+    colunas = ["RA", "CPF", "Nome", "Telefone", "Nome Responsável",
                "MÊS", "Vencimento", coluna_boleto]
     df = pd.DataFrame(linhas, columns=colunas)
 
@@ -400,8 +404,52 @@ def salvar_base_disparo(resultados: list, pasta_saida: str = None, momento: date
             if str(tel.value or "").isdigit() and str(tel.value).startswith("55"):
                 tel.value = int(tel.value)
                 tel.number_format = "0"
-        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 16, "F": 40, "G": 11, "H": 12, "I": 52}
+        larguras = {"A": 13, "B": 14, "C": 46, "D": 16, "E": 40, "F": 11, "G": 12, "H": 52}
         for col, largura in larguras.items():
             ws.column_dimensions[col].width = largura
 
     return caminho_csv, caminho_xlsx
+
+
+def gravar_backup_linha(registro: dict, pasta_saida: str = None, momento: datetime = None) -> str:
+    """
+    BACKUP em disco, visível pro usuário: acrescenta 1 linha (o RA que acabou
+    de ser processado) em saida/<data-hora>/backup_parcial.csv e força a
+    gravação no disco (flush + fsync). Se o PC desligar no meio da execução,
+    esse arquivo já tem tudo que foi processado até ali (abre direto no Excel).
+    Retorna o caminho do arquivo, ou "" se não conseguiu gravar (nunca lança:
+    falha de backup não pode derrubar a automação).
+    """
+    try:
+        pasta_saida = pasta_saida or config.PASTA_SAIDA
+        momento = momento or datetime.now()
+        pasta_execucao = os.path.join(pasta_saida, momento.strftime("%Y-%m-%d_%H-%M-%S"))
+        os.makedirs(pasta_execucao, exist_ok=True)
+        caminho = os.path.join(pasta_execucao, NOME_BACKUP_PARCIAL)
+        novo = not os.path.isfile(caminho)
+        with open(caminho, "a", encoding="utf-8", newline="") as f:
+            if novo:
+                f.write("\ufeff")  # BOM: o Excel abre com acentos corretos
+            w = csv_modulo.DictWriter(f, fieldnames=config.COLUNAS_SAIDA, delimiter=";",
+                               extrasaction="ignore", restval="")
+            if novo:
+                w.writeheader()
+            w.writerow({c: registro.get(c, "") for c in config.COLUNAS_SAIDA})
+            f.flush()
+            os.fsync(f.fileno())
+        return caminho
+    except Exception:  # pylint: disable=broad-except
+        return ""
+
+
+def remover_backup_parcial(pasta_saida: str = None, momento: datetime = None):
+    """Apaga o backup_parcial.csv da execução (chamado quando os arquivos
+    finais já foram gravados com sucesso)."""
+    try:
+        pasta_saida = pasta_saida or config.PASTA_SAIDA
+        momento = momento or datetime.now()
+        caminho = os.path.join(pasta_saida, momento.strftime("%Y-%m-%d_%H-%M-%S"), NOME_BACKUP_PARCIAL)
+        if os.path.isfile(caminho):
+            os.remove(caminho)
+    except OSError:
+        pass
