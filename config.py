@@ -213,6 +213,21 @@ CAMINHO_LOGO = caminho_recurso("assets", "logo.png")
 CAMINHO_MANUAL = caminho_recurso("assets", "manual.pdf")
 CAMINHO_MANUAL_WORD = caminho_recurso("assets", "manual.docx")  # cópia editável, se precisar
 
+
+def localizar_manual() -> str:
+    """Procura o manual.pdf: 1) dentro do .exe (sys._MEIPASS/assets); 2) na pasta
+    assets do projeto; 3) na pasta assets ao lado do .exe. Devolve "" se não achar."""
+    candidatos = []
+    if getattr(sys, "_MEIPASS", None):
+        candidatos.append(os.path.join(sys._MEIPASS, "assets", "manual.pdf"))  # pylint: disable=protected-access
+    candidatos.append(os.path.join(PASTA_PROJETO, "assets", "manual.pdf"))
+    if getattr(sys, "frozen", False):
+        candidatos.append(os.path.join(os.path.dirname(sys.executable), "assets", "manual.pdf"))
+    for caminho in candidatos:
+        if os.path.isfile(caminho):
+            return caminho
+    return ""
+
 # ---------------------------------------------------------------------------
 # Perfis (até 3 logins independentes do Chrome, cada um com apelido próprio)
 # ---------------------------------------------------------------------------

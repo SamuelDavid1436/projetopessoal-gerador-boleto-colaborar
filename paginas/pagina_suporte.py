@@ -6,6 +6,8 @@ Informações de contato para suporte, e atalho para o manual (Word).
 """
 import os
 
+from tkinter import messagebox
+
 import customtkinter as ctk
 
 import config
@@ -53,5 +55,12 @@ class PaginaSuporte(ctk.CTkFrame):
         ).pack(anchor="w", padx=16, pady=16)
 
     def _abrir_manual(self):
-        self.controlador.abrir_arquivo(config.CAMINHO_MANUAL)
+        caminho = config.localizar_manual()
+        if not caminho:
+            messagebox.showwarning(
+                "Manual não encontrado",
+                "Não encontrei o arquivo do manual (manual.pdf). Fale com o suporte para receber uma cópia.",
+            )
+            return
+        self.controlador.abrir_arquivo(caminho)
 
