@@ -28,6 +28,12 @@ CSV ou Excel. **RA na 1ª coluna** (com ou sem cabeçalho). **Telefone é opcion
 
 **`resultado.csv/.xlsx`**: resumo técnico por RA (Status da Consulta), usado pelo "Reprocessar erros".
 
+## Zerar painel (começar outro polo)
+Em **Configurações → Zerar painel**: zera os números e o histórico, a aba Logs, os prints de erro, a base selecionada e a pasta `saida`. Os arquivos gerados **não são apagados**: são movidos para `saida_arquivadas\<data-hora>` (na pasta de dados). Perfis, logins do Chrome e credenciais do Windows nunca são tocados. Não funciona com execução rodando; arquivos abertos no Excel não são movidos e o programa avisa. A lógica está em `limpeza.py`.
+
+## Manual e suporte
+O manual do usuário (`assets/manual.pdf`, com cópia editável em `manual.docx`) abre pelo botão da tela Suporte; no .exe é lido de `sys._MEIPASS`. Telefone e e-mail de suporte ficam em `SUPORTE_TELEFONE` e `SUPORTE_EMAIL` no `config.py`.
+
 ## Desenvolvimento
 ```
 pip install -r requirements.txt
@@ -39,6 +45,7 @@ Teste rápido de um RA, sem interface: `python teste_colabora.py 3771580906`.
 - `colaboraread_client.py`: toda a interação com o Colaboraread (substitui o `crm_client.py`)
 - `runner.py`: perfis em paralelo; cada janela aguarda o acesso ao Colaborar
 - `data_io.py`: leitura da base e gravação dos resultados
+- `limpeza.py`: "Zerar painel" (arquiva a saída e zera histórico/logs)
 - `config.py`: URLs, pastas, período do relatório
 - Demais arquivos (interface, perfis, histórico, recuperação, build do .exe): iguais ao Captura Link de Pagamento.
 
