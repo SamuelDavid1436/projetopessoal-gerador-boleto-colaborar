@@ -10,6 +10,7 @@ as páginas usam através do "controlador" (esta própria classe App).
 import os
 import platform
 import queue
+import shutil
 import subprocess
 import threading
 import time
@@ -435,6 +436,89 @@ class App(ctk.CTk):
         threading.Thread(
             target=self._executar_thread, args=(ras, perfis_selecionados), daemon=True
         ).start()
+
+    def zerar_painel(self):
+        """Zera o painel pra começar uma nova rodada (ex.: próximo polo):
+        números, histórico, aba Logs, backup/recuperação e pasta de saída.
+        Os arquivos da saída são MOVIDOS pra uma pasta de arquivo (não
+        apagados), pra não perder nada por clique acidental. Os logins dos
+        perfis do Chrome são mantidos."""
+        if self.em_execucao:
+            messagebox.showwarning(
+                "Execução em andamento",
+                "Não dá pra zerar o painel com uma execução rodando. Pare a execução e tente de novo.",
+            )
+            return
+        pasta_arquivo = os.path.join(config.PASTA_DOCUMENTOS, "saida_arquivadas")
+        if not messagebox.askyesno(
+            "Zerar painel",
+            "Isso vai zerar os números do painel, o histórico de execuções, a aba Logs e a pasta de saída.\n\n"
+            f"Os arquivos gerados (CSV/Excel) NÃO serão apagados: vão ser movidos para\n{pasta_arquivo}\n\n"
+            "Seus logins do Chrome (perfis) continuam salvos.\n\nQuer zerar agora?",
+        ):
+            return
+
+        avisos = []
+        # 1) números e estado da tela
+        with self._lock_progresso:
+            self.total_atual = 0
+            self.concluidos_atual = 0
+            self.progresso_atual = 0.0
+            self.contagem_sucesso = 0
+            self.contagem_erro = 0
+            self.ras_em_processamento = {}
+            self.inicio_execucao_dt = None
+            self.apelidos_execucao_atual = []
+        self.telefones_base = {}
+        try:
+            self.paginas["Execuções"].caminho_arquivo_ras = None
+            self.paginas["Execuções"].label_arquivo.configure(
+                text="Nenhum arquivo importado.", text_color=estilo.TEXTO_SECUNDARIO)
+        except Exception:  # pylint: disable=broad-except
+            pass
+
+        # 2) histórico (cartões do Início e tabelas)
+        try:
+            with open(config.ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
+                f.write("[]")
+        except OSError as erro:
+            avisos.append(f"histórico: {erro}")
+
+        # 3) log de recuperação, prints de erro
+        recuperacao.descartar()
+        shutil.rmtree(config.PASTA_SCREENSHOTS, ignore_errors=True)
+        os.makedirs(config.PASTA_SCREENSHOTS, exist_ok=True)
+
+        # 4) pasta de saída: move tudo pra saida_arquivadas/<data-hora>
+        movidos = 0
+        try:
+            itens = os.listdir(config.PASTA_SAIDA) if os.path.isdir(config.PASTA_SAIDA) else []
+            if itens:
+                destino = os.path.join(pasta_arquivo, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+                os.makedirs(destino, exist_ok=True)
+                for nome in itens:
+                    try:
+                        shutil.move(os.path.join(config.PASTA_SAIDA, nome), os.path.join(destino, nome))
+                        movidos += 1
+                    except (OSError, shutil.Error) as erro:
+                        avisos.append(f"{nome}: {erro}")
+        except OSError as erro:
+            avisos.append(f"pasta de saída: {erro}")
+        os.makedirs(config.PASTA_SAIDA, exist_ok=True)
+
+        # 5) aba Logs
+        try:
+            self.paginas["Logs"]._limpar()  # pylint: disable=protected-access
+        except Exception:  # pylint: disable=broad-except
+            pass
+        self._log("Painel zerado. Pronto para uma nova rodada."
+                  + (f" {movidos} item(ns) da saída movidos para {pasta_arquivo}." if movidos else ""))
+        for aviso in avisos:
+            self._log(f"[aviso] zerar painel: {aviso}")
+        self.mostrar_pagina("Início")
+        if avisos:
+            messagebox.showwarning("Zerar painel", "Zerado, mas alguns itens não puderam ser movidos "
+                                   "(talvez abertos em outro programa):\n\n" + "\n".join(avisos[:5]))
 
     def parar_execucao(self):
         if not self.em_execucao or self.parando:
