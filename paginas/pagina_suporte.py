@@ -26,8 +26,8 @@ class PaginaSuporte(ctk.CTkFrame):
         painel.pack(fill="x", padx=24, pady=(0, 16))
 
         for rotulo, valor in [
-            ("Telefone", "(11) 94727-8128"),
-            ("E-mail", "samueldayvid5@icloud.com"),
+            ("Telefone", config.SUPORTE_TELEFONE),
+            ("E-mail", config.SUPORTE_EMAIL),
         ]:
             linha = ctk.CTkFrame(painel, fg_color="transparent")
             linha.pack(fill="x", padx=16, pady=10)

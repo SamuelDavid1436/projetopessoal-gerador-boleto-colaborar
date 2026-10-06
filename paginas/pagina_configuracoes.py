@@ -16,12 +16,16 @@ class PaginaConfiguracoes(ctk.CTkFrame):
         super().__init__(master, fg_color="transparent")
         self.controlador = controlador
 
-        ctk.CTkLabel(self, text="Configurações", font=ctk.CTkFont(size=24, weight="bold"),
+        # tudo dentro de um quadro rolável, pra nada ficar cortado em telas menores
+        corpo = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        corpo.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(corpo, text="Configurações", font=ctk.CTkFont(size=24, weight="bold"),
                      text_color=estilo.TEXTO_PRIMARIO).pack(anchor="w", padx=24, pady=(24, 4))
-        ctk.CTkLabel(self, text="Preferências gerais do aplicativo.",
+        ctk.CTkLabel(corpo, text="Preferências gerais do aplicativo.",
                      font=ctk.CTkFont(size=13), text_color=estilo.TEXTO_SECUNDARIO).pack(anchor="w", padx=24, pady=(0, 16))
 
-        painel_tema = ctk.CTkFrame(self, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
+        painel_tema = ctk.CTkFrame(corpo, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
         painel_tema.pack(fill="x", padx=24, pady=(0, 16))
         linha = ctk.CTkFrame(painel_tema, fg_color="transparent")
         linha.pack(fill="x", padx=16, pady=16)
@@ -37,7 +41,7 @@ class PaginaConfiguracoes(ctk.CTkFrame):
         if ctk.get_appearance_mode() == "Dark":
             self.switch_tema.select()
 
-        painel_dados = ctk.CTkFrame(self, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
+        painel_dados = ctk.CTkFrame(corpo, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
         painel_dados.pack(fill="x", padx=24)
         ctk.CTkLabel(painel_dados, text="Onde os dados ficam salvos", font=ctk.CTkFont(weight="bold"),
                      text_color=estilo.TEXTO_PRIMARIO).pack(anchor="w", padx=16, pady=(16, 4))
@@ -50,21 +54,29 @@ class PaginaConfiguracoes(ctk.CTkFrame):
             command=lambda: self.controlador.abrir_pasta(config.PASTA_DOCUMENTOS),
         ).pack(anchor="w", padx=16, pady=(0, 16))
 
-        painel_zerar = ctk.CTkFrame(self, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
+        painel_zerar = ctk.CTkFrame(corpo, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
         painel_zerar.pack(fill="x", padx=24, pady=(16, 16))
-        ctk.CTkLabel(painel_zerar, text="Zerar painel (nova rodada)", font=ctk.CTkFont(weight="bold"),
+        ctk.CTkLabel(painel_zerar, text="Zerar painel (começar outro polo)", font=ctk.CTkFont(weight="bold"),
                      text_color=estilo.TEXTO_PRIMARIO).pack(anchor="w", padx=16, pady=(16, 4))
         ctk.CTkLabel(
             painel_zerar,
             text=("Use antes de começar outra rodada (por exemplo, o próximo polo). Zera os números e o "
-                  "histórico do painel, a aba Logs e a pasta de saída. Os arquivos gerados não são apagados: "
-                  "são movidos para a pasta \"saida_arquivadas\". Os logins dos perfis continuam salvos."),
+                  "histórico do painel, a aba Logs, os prints de erro, a base selecionada e a pasta Saída. "
+                  "Os arquivos gerados não são apagados: são movidos para a pasta \"saida_arquivadas\". "
+                  "Seus perfis e logins do Chrome continuam salvos."),
             text_color=estilo.TEXTO_SECUNDARIO, wraplength=760, justify="left",
         ).pack(anchor="w", padx=16, pady=(0, 12))
+        linha_botoes = ctk.CTkFrame(painel_zerar, fg_color="transparent")
+        linha_botoes.pack(anchor="w", padx=16, pady=(0, 16))
         ctk.CTkButton(
-            painel_zerar, text="🧹  Zerar painel", fg_color=estilo.BOTAO_PARAR,
+            linha_botoes, text="Abrir pasta Saída", fg_color=estilo.FUNDO_SUTIL, hover_color=estilo.BORDA,
+            text_color=estilo.TEXTO_PRIMARIO, width=150,
+            command=lambda: self.controlador.abrir_pasta(config.PASTA_SAIDA),
+        ).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(
+            linha_botoes, text="🧹  Zerar painel", fg_color=estilo.BOTAO_PARAR,
             hover_color=estilo.BOTAO_PARAR_HOVER, width=150, command=self.controlador.zerar_painel,
-        ).pack(anchor="w", padx=16, pady=(0, 16))
+        ).pack(side="left")
 
     def _alternar_tema(self):
         modo = "dark" if self.switch_tema.get() else "light"

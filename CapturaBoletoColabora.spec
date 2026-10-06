@@ -51,6 +51,7 @@ hiddenimports += [
     "selenium.webdriver.chrome.webdriver",
     "selenium.webdriver.chrome.service",
     "selenium.webdriver.chrome.options",
+    "limpeza",
     "selenium",
     "selenium.webdriver",
     "webdriver_manager",

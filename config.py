@@ -188,6 +188,10 @@ ARQUIVO_HISTORICO = os.path.join(PASTA_LOGS, "historico_execucoes.json")
 
 VERSAO_APP = "0.9.0 (amostra)"
 
+# Contato de suporte (tela Suporte)
+SUPORTE_TELEFONE = "(11) 94727-8128"
+SUPORTE_EMAIL = "samueldayvid5@icloud.com"
+
 # ---------------------------------------------------------------------------
 # Ícone, logo e manual do aplicativo (pasta assets/, ao lado deste arquivo)
 # Usa sys._MEIPASS quando empacotado com PyInstaller (.exe), senão a pasta
