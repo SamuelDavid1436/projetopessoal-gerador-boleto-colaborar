@@ -118,10 +118,6 @@ class PaginaInicio(ctk.CTkFrame):
         )
         self.botao_parar.pack(side="left", padx=(0, 10))
         ctk.CTkButton(
-            bloco_botoes, text="🧹  Zerar painel", fg_color=estilo.FUNDO_SUTIL, hover_color=estilo.BORDA,
-            text_color=estilo.TEXTO_PRIMARIO, width=130, command=self.controlador.zerar_painel,
-        ).pack(side="left", padx=(0, 10))
-        ctk.CTkButton(
             bloco_botoes, text="+  Nova Execução", fg_color=estilo.DOURADO, hover_color=estilo.DOURADO_HOVER,
             width=150, command=lambda: self.controlador.mostrar_pagina("Execuções"),
         ).pack(side="left")

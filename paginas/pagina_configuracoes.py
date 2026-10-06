@@ -50,6 +50,22 @@ class PaginaConfiguracoes(ctk.CTkFrame):
             command=lambda: self.controlador.abrir_pasta(config.PASTA_DOCUMENTOS),
         ).pack(anchor="w", padx=16, pady=(0, 16))
 
+        painel_zerar = ctk.CTkFrame(self, fg_color=estilo.FUNDO_CARTAO, corner_radius=estilo.RAIO_CARTAO)
+        painel_zerar.pack(fill="x", padx=24, pady=(16, 16))
+        ctk.CTkLabel(painel_zerar, text="Zerar painel (nova rodada)", font=ctk.CTkFont(weight="bold"),
+                     text_color=estilo.TEXTO_PRIMARIO).pack(anchor="w", padx=16, pady=(16, 4))
+        ctk.CTkLabel(
+            painel_zerar,
+            text=("Use antes de começar outra rodada (por exemplo, o próximo polo). Zera os números e o "
+                  "histórico do painel, a aba Logs e a pasta de saída. Os arquivos gerados não são apagados: "
+                  "são movidos para a pasta \"saida_arquivadas\". Os logins dos perfis continuam salvos."),
+            text_color=estilo.TEXTO_SECUNDARIO, wraplength=760, justify="left",
+        ).pack(anchor="w", padx=16, pady=(0, 12))
+        ctk.CTkButton(
+            painel_zerar, text="🧹  Zerar painel", fg_color=estilo.BOTAO_PARAR,
+            hover_color=estilo.BOTAO_PARAR_HOVER, width=150, command=self.controlador.zerar_painel,
+        ).pack(anchor="w", padx=16, pady=(0, 16))
+
     def _alternar_tema(self):
         modo = "dark" if self.switch_tema.get() else "light"
         ctk.set_appearance_mode(modo)
